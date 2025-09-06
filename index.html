@@ -208,44 +208,40 @@
   function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
 
   function renderTable(){
-    tbl.innerHTML = "";
-    rows.forEach((r,i)=>{
-      const tr = document.createElement("tr");
-      if(r._state==="add") tr.classList.add("add");
-      if(r._state==="edit") tr.classList.add("edit");
-      if(r._state==="del") tr.classList.add("del");
-      tr.innerHTML = `
-        <td>${i+1}</td>
-        <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
-        <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
-        <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
-        <td>
+          tbl.innerHTML = "";
+          rows.forEach((r,i)=>{
+          const tr = document.createElement("tr");
+          if(r._state==="add") tr.classList.add("add");
+          if(r._state==="edit") tr.classList.add("edit");
+          if(r._state==="del") tr.classList.add("del");
+          tr.innerHTML = `
+          <td>${i+1}</td>
+          <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
+          <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
+          <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
+          <td>
           <div class="toolbar">
-            <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
-            <button class="btn btnInc">+1</button>
-            <button class="btn btnDec">-1</button>
+          <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
           </div>
-        </td>`;
-      tbl.appendChild(tr);
-      const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
-      tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
-      tr.querySelector(".btnInc").addEventListener("click",()=>adjustPoints(i,1));
-      tr.querySelector(".btnDec").addEventListener("click",()=>adjustPoints(i,-1));
-      idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
-      nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
-      ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
-
-      // Step 2 — blur on Enter to force change handlers
-      [idEl, nameEl, ptsEl].forEach(el => {
-        el.addEventListener("keydown", ev => {
+          </td>`;
+          tbl.appendChild(tr);
+          const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
+          tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
+          idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
+          nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
+          ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
+          
+          
+          [idEl, nameEl, ptsEl].forEach(el => {
+          el.addEventListener("keydown", ev => {
           if (ev.key === "Enter") {
-            ev.preventDefault();
-            ev.currentTarget.blur();
+          ev.preventDefault();
+          ev.currentTarget.blur();
           }
-        });
-      });
-    });
-  }
+          });
+          });
+          });
+          }
 
   function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function adjustPoints(idx,delta){ pushHistory('adjustPoints'); const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
