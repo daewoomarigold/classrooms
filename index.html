@@ -246,11 +246,14 @@
 
   // ===== CSV Import (Step 4) =====
   function parseFileToNames(text){
-    const clean=(text||"").replaceAll("
-","
-");
-    return clean.split("
-").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",")[0].trim()).filter(Boolean);
+    // normalize newlines (\r\n or \r -> \n) and split, then take the first comma-separated field per line
+    const clean = (text || "").replace(/\r\n?/g, "\n");
+    return clean
+      .split("\n")
+      .map(l=>l.trim())
+      .filter(Boolean)
+      .map(l=>l.split(",")[0].trim())
+      .filter(Boolean);
   }
 
   async function importDry(){
