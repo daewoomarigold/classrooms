@@ -1144,7 +1144,7 @@ async function deleteClassDoc(classId){
   resetState();
 }
 
-// confirm & trigger
+// Wire delete button with confirmation
 byId('btnDeleteClass').addEventListener('click', async () => {
   if (!currentClass) { alert("Load a class first."); return; }
   const ok = confirm(`Are you sure you want to DELETE the class "${currentClass}" and all its students? This cannot be undone.`);
