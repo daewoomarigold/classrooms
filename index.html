@@ -1,5 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Classroom Admin — Ground‑Up</title>
+<style>
+:root{--bg:#0b1020;--panel:#0f172a;--panel2:#111827;--muted:#9aa6b2;--text:#e7e9ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--accent:#60a5fa;--border:#1e293b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{position:sticky;top:0;z-index:3;background:#0a0f1f;border-bottom:1px solid var(--border);padding:14px 16px}
+h1{margin:0;font-size:18px}
+main{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px}
+@media (max-width:980px){main{grid-template-columns:1fr}}
 section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
 label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
 input,select,button{font:inherit}
@@ -108,8 +121,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </table>
 </div>
 </section>
-</main>
-  
+</main>  
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -154,6 +166,35 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
       }
     };
   }
+// === Prefix autofill state ===
+let idPrefixTouched = false;
+
+function mostCommon(arr){
+  const m = new Map();
+  for (const v of arr) m.set(v, (m.get(v) || 0) + 1);
+  let best = "", cnt = 0;
+  for (const [k, c] of m) if (c > cnt) { best = k; cnt = c; }
+  return best;
+}
+
+// e.g. G2_ from G2_0003 — grabs the non-numeric head
+function guessPrefixFromRows(rows){
+  const prefixes = rows
+    .map(r => r.id)
+    .filter(Boolean)
+    .map(id => {
+      const m = String(id).match(/^(.+?)(\d+)$/);
+      return m ? m[1] : "";
+    })
+    .filter(Boolean);
+  return prefixes.length ? mostCommon(prefixes) : "";
+}
+
+// e.g. "Grade 2" -> "G2_"
+function guessPrefixFromClassName(name){
+  const m = String(name || "").match(/(\d{1,2})/);
+  return m ? `G${m[1]}_` : "";
+}
 
   function restoreState(snapshot) {
     rows = snapshot.rows;
@@ -325,6 +366,14 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
         });
       });
       renderTable();
+      // Autofill ID prefix if user hasn't typed one yet
+if (!idPrefixTouched) {
+  const byRows = guessPrefixFromRows(rows);
+  const byName = guessPrefixFromClassName(className);
+  const pick   = byRows || byName;
+  if (pick) byId("idPrefix").value = pick;
+}
+
       log(`Loaded ${rows.length} students for ${className}`);
       history = [];
       future  = [];
@@ -504,6 +553,17 @@ const batch = writeBatch(db);
   // Bind import buttons
   byId("btnImportDry").addEventListener("click", importDry);
   byId("btnImportCommit").addEventListener("click", importCommit);
+
+  // Don't overwrite a user-typed prefix
+byId('idPrefix').addEventListener('input', () => { idPrefixTouched = true; });
+
+// Suggest prefix while typing class name—only if user hasn't touched prefix
+byId('className').addEventListener('input', () => {
+  if (idPrefixTouched) return;
+  const pick = guessPrefixFromClassName(byId('className').value.trim());
+  if (pick) byId('idPrefix').value = pick;
+});
+
 
   // === Keyboard shortcuts: Undo/Redo ===
   document.addEventListener('keydown', (e) => {
