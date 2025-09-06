@@ -65,7 +65,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
 <div class="toolbar" style="margin-top:10px">
 <button id="btnLoad" class="btn primary">Load Class</button>
-<button id="btnListen" class="btn">Live Listen: Off</button>
 <button id="btnExport" class="btn">Export CSV</button>
 </div>
 
@@ -351,36 +350,37 @@ function guessPrefixFromClassName(name){
     resetState();
     if(unsubscribe){ unsubscribe(); unsubscribe=null; }
     const coll = collection(db,"classes",className,"students");
-    const processSnap = (snap) => {
-      rows = [];
-      snap.forEach(d => {
-        const data = d.data();
-        rows.push({
-          id: d.id,
-          name: data.name || "",
-          points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
-          daily: (data.points && typeof data.points.daily === 'number') ? int(data.points.daily) : 0
-        });
-      });
-      renderTable();
-      // Autofill ID prefix if user hasn't typed one yet
-if (!idPrefixTouched) {
-  const byRows = guessPrefixFromRows(rows);
-  const byName = guessPrefixFromClassName(className);
-  const pick   = byRows || byName;
-  if (pick) byId("idPrefix").value = pick;
-}
+   const processSnap = (snap) => {
+  rows = [];
+  snap.forEach(d => {
+    const data = d.data();
+    rows.push({
+      id: d.id,
+      name: data.name || "",
+      points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+      daily: (data.points && typeof data.points.daily === 'number') ? int(data.points.daily) : 0
+    });
+  });
+  renderTable();
 
-      log(`Loaded ${rows.length} students for ${className}`);
-      history = [];
-      future  = [];
-    };
-    if(live){
-      unsubscribe = onSnapshot(query(coll),processSnap,(err)=>log("students listen:", err.code||err.message));
-    } else {
-      try{ const snap=await getDocs(query(coll)); processSnap(snap); }catch(e){ log("students read:", e.code||e.message); }
-    }
+  // Autofill ID prefix if user hasn't typed one yet (keep if you added prefix logic)
+  if (typeof idPrefixTouched !== "undefined" && !idPrefixTouched) {
+    const byRows = guessPrefixFromRows ? guessPrefixFromRows(rows) : "";
+    const byName = guessPrefixFromClassName ? guessPrefixFromClassName(className) : "";
+    const pick   = byRows || byName;
+    if (pick) byId("idPrefix").value = pick;
   }
+
+  log(`Loaded ${rows.length} students for ${className}`);
+  history = [];
+  future  = [];
+};
+
+// Always live listen
+unsubscribe = onSnapshot(query(coll), processSnap, (err) =>
+  log("students listen:", err.code || err.message)
+);
+  
 
   async function saveChanges(){
     if(!currentClass){ alert("Load a class first."); return; }
