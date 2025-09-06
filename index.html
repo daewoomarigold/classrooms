@@ -136,9 +136,8 @@
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
 
-  // === Auth gating for writes ===
-  const TRUSTED_EMAILS = new Set(["teacher1@example.com","teacher2@example.com"]);
-  const isTrusted = (user) => !!(user && TRUSTED_EMAILS.has(user.email));
+  // === Auth gating (sign-in required for all features) ===
+const isSignedIn = () => !!auth.currentUser;
 
   const $ = s => document.querySelector(s);
   const byId = id => document.getElementById(id);
@@ -161,8 +160,30 @@
 
   function setAuthUI(user){
     const st = byId("authStatus"); const txt = byId("authText");
-    const trusted = isTrusted(user);
-    if(user){ st.classList.remove("signedout"); st.classList.add("signedin"); txt.textContent = `Signed in as ${user.email}${trusted?" (trusted)":""}`; byId("btnSignOut").disabled=false; }
+    const signedIn = !!user;
+
+    if(signedIn){
+      st.classList.remove("signedout"); st.classList.add("signedin");
+      txt.textContent = `Signed in as ${user.email}`;
+      byId("btnSignOut").disabled = false;
+    }else{
+      st.classList.remove("signedin"); st.classList.add("signedout");
+      txt.textContent = "Signed out";
+      byId("btnSignOut").disabled = true;
+    }
+
+    // Disable everything when signed out; enable base controls when signed in.
+    const allIds = [
+      "btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport",
+      "btnAdd","btnSave","btnDiscard","file","importMode","btnImportDry","btnImportCommit"
+    ];
+    if(!signedIn){
+      allIds.forEach(id=>{ const el=byId(id); if(el) el.disabled = true; });
+    } else {
+      ["btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport","btnAdd","file","importMode","btnImportDry"].forEach(id=>{ const el=byId(id); if(el) el.disabled = false; });
+      // btnSave / btnDiscard / btnImportCommit remain as-is (respect dirty state and dry-run flow)
+    }
+  }${trusted?" (trusted)":""}`; byId("btnSignOut").disabled=false; }
     else { st.classList.remove("signedin"); st.classList.add("signedout"); txt.textContent = "Signed out"; byId("btnSignOut").disabled=true; }
 
     // Gate write-ish actions behind trusted auth
@@ -227,7 +248,7 @@
 
   async function saveChanges(){
     if(!currentClass){ alert("Load a class first."); return; }
-    if(!isTrusted(auth.currentUser)){ alert("Sign in with a trusted teacher account to save."); return; }
+    if(!isSignedIn()){ alert("Sign in to save changes."); return; }
     const batch = writeBatch(db);
     staged.del.forEach((_,id)=>batch.delete(doc(db,"classes",currentClass,"students",id)));
     staged.add.forEach((data,id)=>batch.set(doc(db,"classes",currentClass,"students",id),{ id:data.id, name:data.name||"", points:int(data.points||0) },{ merge:true }));
@@ -246,9 +267,9 @@
   async function exportCSV(){ if(!currentClass){ alert("Load a class first."); return; } const rowsOut=[["id","name","points"],...rows.map(r=>[r.id,r.name||"",int(r.points||0)])]; const csv=rowsOut.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"); const blob=new Blob([csv],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`${currentClass}_students.csv`; document.body.appendChild(a); a.click(); a.remove(); }
   function parseFileToNames(text){ const clean=(text||"").replaceAll("\r",""); return clean.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",")[0].trim()).filter(Boolean); }
 
-  async function importDry(){ if(!currentClass){ alert("Load a class first."); return; } if(!isTrusted(auth.currentUser)){ alert("Sign in with a trusted teacher account to dry-run import."); return; } const f=byId("file"); if(!f.files||!f.files.length){ alert("Choose a CSV/TXT file."); return; } const text=await f.files[0].text(); const names=parseFileToNames(text); if(!names.length){ alert("No names detected in file."); return; } const pref=byId("idPrefix").value.trim()||prefixFor(currentClass); let idx=1; while(rows.find(r=>r.id===`${pref}${String(idx).padStart(4,"0")}`)) idx++; const plan=[]; for(const name of names){ const id=`${pref}${String(idx++).padStart(4,"0")}`; const exists=rows.find(r=>r.id===id); plan.push({ id,name,exists }); } log(`Dry Run: ${plan.filter(p=>!p.exists).length} to add, ${plan.filter(p=>p.exists).length} already exist.`); byId("btnImportCommit").disabled=false; byId("btnImportCommit")._plan=plan; }
+  async function importDry(){ if(!currentClass){ alert("Load a class first."); return; } if(!isSignedIn()){ alert("Sign in to run import."); return; } const f=byId("file"); if(!f.files||!f.files.length){ alert("Choose a CSV/TXT file."); return; } const text=await f.files[0].text(); const names=parseFileToNames(text); if(!names.length){ alert("No names detected in file."); return; } const pref=byId("idPrefix").value.trim()||prefixFor(currentClass); let idx=1; while(rows.find(r=>r.id===`${pref}${String(idx).padStart(4,"0")}`)) idx++; const plan=[]; for(const name of names){ const id=`${pref}${String(idx++).padStart(4,"0")}`; const exists=rows.find(r=>r.id===id); plan.push({ id,name,exists }); } log(`Dry Run: ${plan.filter(p=>!p.exists).length} to add, ${plan.filter(p=>p.exists).length} already exist.`); byId("btnImportCommit").disabled=false; byId("btnImportCommit")._plan=plan; }
 
-  async function importCommit(){ const plan=byId("btnImportCommit")._plan||[]; if(!plan.length){ alert("Run Dry Run first."); return; } if(!isTrusted(auth.currentUser)){ alert("Sign in with a trusted teacher account to import."); return; } const mode=byId("importMode").value; const batch=writeBatch(db); const base=["classes",currentClass,"students"]; if(mode==="replace"){ const keep=new Set(plan.map(p=>p.id)); for(const r of rows){ if(!keep.has(r.id)) batch.delete(doc(db,...base,r.id)); } } for(const p of plan){ batch.set(doc(db,...base,p.id),{ id:p.id,name:p.name,points:0 },{ merge:true }); } await batch.commit(); log(`Import committed: ${plan.length} rows (mode=${mode})`); byId("btnImportCommit").disabled=true; loadClass({ live:!!unsubscribe }); }
+  async function importCommit(){ const plan=byId("btnImportCommit")._plan||[]; if(!plan.length){ alert("Run Dry Run first."); return; } if(!isSignedIn()){ alert("Sign in to import."); return; } const mode=byId("importMode").value; const batch=writeBatch(db); const base=["classes",currentClass,"students"]; if(mode==="replace"){ const keep=new Set(plan.map(p=>p.id)); for(const r of rows){ if(!keep.has(r.id)) batch.delete(doc(db,...base,r.id)); } } for(const p of plan){ batch.set(doc(db,...base,p.id),{ id:p.id,name:p.name,points:0 },{ merge:true }); } await batch.commit(); log(`Import committed: ${plan.length} rows (mode=${mode})`); byId("btnImportCommit").disabled=true; loadClass({ live:!!unsubscribe }); }
 
   byId("btnLoad").addEventListener("click",()=>loadClass({ live:false }));
   byId("btnListen").addEventListener("click",async e=>{ const on=!!unsubscribe; if(on){ unsubscribe(); unsubscribe=null; e.target.textContent="Live Listen: Off"; } else { await loadClass({ live:true }); e.target.textContent="Live Listen: On"; } });
@@ -277,9 +298,18 @@
   });
   byId("btnSignOut").addEventListener("click",async()=>{ try{ await signOut(auth);}catch(e){ log("auth:", e.code||e.message); }});
 
-  onAuthStateChanged(auth,(user)=>{ setAuthUI(user); refreshClasses(); });
-
-  refreshClasses();
+  onAuthStateChanged(auth,(user)=>{
+    setAuthUI(user);
+    if(user){
+      refreshClasses();
+    } else {
+      // Clear UI when signed out
+      const select = byId("classSelect"); if(select) select.innerHTML = "";
+      tbl.innerHTML = "";
+      log("Sign in to view classes.");
+    }
+  });
 </script>
 </body>
 </html>
+
