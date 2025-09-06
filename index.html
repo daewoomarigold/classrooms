@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Classroom Admin — Ground‑Up</title>
+<title>Classroom Admin — Ground-Up</title>
 <style>
 :root{--bg:#0b1020;--panel:#0f172a;--panel2:#111827;--muted:#9aa6b2;--text:#e7e9ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--accent:#60a5fa;--border:#1e293b}
 *{box-sizing:border-box}
@@ -22,20 +22,7 @@ input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;back
 .btn.primary{border-color:var(--accent)}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.log{
-  height:160px;
-  background:#000;
-  color:#9efca0;
-  border-radius:10px;
-  border:1px solid var(--border);
-  padding:10px;
-  overflow-y:auto;
-  overflow-x:hidden;
-  white-space:pre-wrap;     /* wrap long lines */
-  word-break:break-word;
-  font-family:ui-monospace,Menlo,Consolas,monospace;
-  font-size:11px;           /* tweak to taste */
-}
+.log{height:160px;background:#000;color:#9efca0;border-radius:10px;border:1px solid var(--border);padding:10px;overflow-y:auto;overflow-x:hidden;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
 th{position:sticky;top:0;background:var(--panel);color:var(--muted);text-align:left}
@@ -47,7 +34,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 .status .dot{width:8px;height:8px;border-radius:999px;background:#999}
 .status.signedout .dot{background:#666}
 .status.signedin .dot{background:#10b981}
-  /* simple modal */
+/* simple modal */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:50}
 .modal.open{display:flex}
 .modal .dialog{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.4)}
@@ -57,120 +44,114 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </head>
 <body>
 <header>
-<h1>📋 Classroom Admin</h1>
+  <h1>📋 Classroom Admin</h1>
 </header>
 
-
 <main>
-<section>
-<div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
-<div class="toolbar" style="margin:10px 0 6px">
-<button class="btn" id="btnSignIn">Sign in with Google</button>
-<button class="btn" id="btnSignOut" disabled>Sign out</button>
-</div>
-
-
-<div class="row" style="margin-top:10px">
-<div>
-<label>Class Name</label>
-<select id="className">
-  <option value="" disabled selected>— Select a class —</option>
-</select>
-</div>
-<div>
-<label>Student ID Prefix</label>
-<input id="idPrefix" type="text" placeholder="G5_" />
-</div>
-</div>
-
-
-<div class="toolbar" style="margin-top:10px">
-<!-- REPLACE the entire toolbar that sits under Class Name / Prefix with this -->
-<div class="toolbar" style="margin-top:10px">
-  <button id="btnLoad" class="btn primary">Load Class</button>
-  <button id="btnCreate" class="btn">Create Class</button>
-  <button id="btnExport" class="btn">Export CSV</button>
-</div>
-
-</div>
-
-
-
-
-<div class="toolbar">
-<button id="btnAdd" class="btn">+ Add Student</button>
-<button id="btnSave" class="btn primary" disabled>Save Changes</button>
-<button id="btnDiscard" class="btn" disabled>Discard</button>
-</div>
-
-
-<label style="margin-top:12px">Change Log</label>
-<pre id="log" class="log"></pre>
-
-
-<label style="margin-top:12px">CSV/TXT Import</label>
-<div class="row">
-<div><input id="file" type="file" accept=".csv,.txt" /></div>
-<div>
-<select id="importMode">
-<option value="append">Append</option>
-<option value="replace">Replace</option>
-</select>
-</div>
-</div>
-<div class="toolbar" style="margin-top:8px">
-<button id="btnImportDry" class="btn">Dry Run</button>
-<button id="btnImportCommit" class="btn" disabled>Commit</button>
-</div>
-</section>
-
-
-<section>
-  <!-- Class header (display name + edit/revert) -->
-<div id="classHeader" class="toolbar" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-  <div style="display:flex;gap:10px;align-items:center">
-    <h2 id="classTitle" style="margin:0;font-size:16px;color:var(--text)">Class: —</h2>
-  </div>
-  <div style="display:flex;gap:8px">
-    <button class="btn" id="btnRenameClass" title="Rename Firestore doc id">🏷️</button>
-    <button class="btn" id="btnEditClass" title="Edit class display name">✏️</button>
-    <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
-  </div>
-</div>
-<div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
-<table id="table">
-<thead>
-<tr>
-<th style="width:60px">#</th>
-<th style="width:200px">Student ID</th>
-<th>Name</th>
-<th style="width:120px">Points (Total)</th>
-<th style="width:160px">Actions</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
-  <!-- Create Class Modal -->
-<div id="createClassModal" class="modal" aria-hidden="true">
-  <div class="dialog">
-    <h3>Create Class</h3>
-    <label>New class name</label>
-    <input id="newClassName" type="text" placeholder="e.g., Marigold Grade 1" />
-    <div class="actions">
-      <button class="btn" id="btnCreateCancel">Exit</button>
-      <button class="btn primary" id="btnCreateConfirm">Create</button>
+  <section>
+    <div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
+    <div class="toolbar" style="margin:10px 0 6px">
+      <button class="btn" id="btnSignIn">Sign in with Google</button>
+      <button class="btn" id="btnSignOut" disabled>Sign out</button>
     </div>
-  </div>
-</div>
-</section>
+
+    <div class="row" style="margin-top:10px">
+      <div>
+        <label>Class Name</label>
+        <select id="className">
+          <option value="" disabled selected>— Select a class —</option>
+        </select>
+      </div>
+      <div>
+        <label>Student ID Prefix</label>
+        <input id="idPrefix" type="text" placeholder="G5_" />
+      </div>
+    </div>
+
+    <!-- Single toolbar (deduped) -->
+    <div class="toolbar" style="margin-top:10px">
+      <button id="btnLoad" class="btn primary">Load Class</button>
+      <button id="btnCreate" class="btn">Create Class</button>
+      <button id="btnExport" class="btn">Export CSV</button>
+    </div>
+
+    <div class="toolbar">
+      <button id="btnAdd" class="btn">+ Add Student</button>
+      <button id="btnSave" class="btn primary" disabled>Save Changes</button>
+      <button id="btnDiscard" class="btn" disabled>Discard</button>
+    </div>
+
+    <label style="margin-top:12px">Change Log</label>
+    <pre id="log" class="log"></pre>
+
+    <label style="margin-top:12px">CSV/TXT Import</label>
+    <div class="row">
+      <div><input id="file" type="file" accept=".csv,.txt" /></div>
+      <div>
+        <select id="importMode">
+          <option value="append">Append</option>
+          <option value="replace">Replace</option>
+        </select>
+      </div>
+    </div>
+    <div class="toolbar" style="margin-top:8px">
+      <button id="btnImportDry" class="btn">Dry Run</button>
+      <button id="btnImportCommit" class="btn" disabled>Commit</button>
+    </div>
+  </section>
+
+  <section>
+    <!-- Class header (display name + edit/revert) -->
+    <div id="classHeader" class="toolbar" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="display:flex;gap:10px;align-items:center">
+        <h2 id="classTitle" style="margin:0;font-size:16px;color:var(--text)">Class: —</h2>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="btnRenameClass" title="Rename Firestore doc id">🏷️</button>
+        <button class="btn" id="btnEditClass" title="Edit class display name">✏️</button>
+        <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
+      </div>
+    </div>
+
+    <div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
+      <table id="table">
+        <thead>
+          <tr>
+            <th style="width:60px">#</th>
+            <th style="width:200px">Student ID</th>
+            <th>Name</th>
+            <th style="width:120px">Points (Total)</th>
+            <th style="width:160px">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Create Class Modal -->
+    <div id="createClassModal" class="modal" aria-hidden="true">
+      <div class="dialog">
+        <h3>Create Class</h3>
+        <label>New class name</label>
+        <input id="newClassName" type="text" placeholder="e.g., Marigold Grade 1" />
+        <div class="actions">
+          <button class="btn" id="btnCreateCancel">Exit</button>
+          <button class="btn primary" id="btnCreateConfirm">Create</button>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
-  
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, getDocs, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import {
+    getFirestore, getDocs, getDoc, writeBatch, onSnapshot, query,
+    collection, doc, setDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -180,16 +161,11 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   const db = getFirestore(app); window.db = db;
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
-
   const isSignedIn = () => !!auth.currentUser;
 
   const $ = s => document.querySelector(s);
   const byId = id => document.getElementById(id);
-  const log = (...a) => {
-    const el = byId("log");
-    el.textContent += a.join(" ") + "\n";
-    el.scrollTop = el.scrollHeight;
-  };
+  const log = (...a) => { const el = byId("log"); el.textContent += a.join(" ") + "\\n"; el.scrollTop = el.scrollHeight; };
   const tbl = document.querySelector("#table tbody");
 
   let currentClass = "";
@@ -197,13 +173,11 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   let rows = [];
   let staged = { add:new Map(), edit:new Map(), del:new Map() };
   let classMeta = { displayName: "", idPrefix: "" };
-  let unsubClasses = null; // listener for /classes list
-let classMetaBaseline = null;   // latest Firestore snapshot
-let stagedClass = null;         // UI-only edits, saved on Save Changes
-let unsubClassMeta = null;      // onSnapshot cleanup for class doc
-  // Server baseline of latest Firestore snapshot
-let serverBaseline = new Map();
-
+  let unsubClasses = null;
+  let classMetaBaseline = null;
+  let stagedClass = null;
+  let unsubClassMeta = null;
+  let serverBaseline = new Map();
 
   // === Undo/Redo state ===
   let history = [];
@@ -219,35 +193,34 @@ let serverBaseline = new Map();
       }
     };
   }
-// === Prefix autofill state ===
-let idPrefixTouched = false;
 
-function mostCommon(arr){
-  const m = new Map();
-  for (const v of arr) m.set(v, (m.get(v) || 0) + 1);
-  let best = "", cnt = 0;
-  for (const [k, c] of m) if (c > cnt) { best = k; cnt = c; }
-  return best;
-}
+  // === Prefix autofill state ===
+  let idPrefixTouched = false;
 
-// e.g. G2_ from G2_0003 — grabs the non-numeric head
-function guessPrefixFromRows(rows){
-  const prefixes = rows
-    .map(r => r.id)
-    .filter(Boolean)
-    .map(id => {
-      const m = String(id).match(/^(.+?)(\d+)$/);
-      return m ? m[1] : "";
-    })
-    .filter(Boolean);
-  return prefixes.length ? mostCommon(prefixes) : "";
-}
+  function mostCommon(arr){
+    const m = new Map();
+    for (const v of arr) m.set(v, (m.get(v) || 0) + 1);
+    let best = "", cnt = 0;
+    for (const [k, c] of m) if (c > cnt) { best = k; cnt = c; }
+    return best;
+  }
 
-// e.g. "Grade 2" -> "G2_"
-function guessPrefixFromClassName(name){
-  const m = String(name || "").match(/(\d{1,2})/);
-  return m ? `G${m[1]}_` : "";
-}
+  function guessPrefixFromRows(rows){
+    const prefixes = rows
+      .map(r => r.id)
+      .filter(Boolean)
+      .map(id => {
+        const m = String(id).match(/^(.+?)(\\d+)$/);
+        return m ? m[1] : "";
+      })
+      .filter(Boolean);
+    return prefixes.length ? mostCommon(prefixes) : "";
+  }
+
+  function guessPrefixFromClassName(name){
+    const m = String(name || "").match(/(\\d{1,2})/);
+    return m ? \`G\${m[1]}_` : "";
+  }
 
   function restoreState(snapshot) {
     rows = snapshot.rows;
@@ -258,7 +231,7 @@ function guessPrefixFromClassName(name){
     };
     renderTable();
     updateDirtyButtons();
-  } // <-- properly close restoreState here
+  }
 
   function pushHistory(label) {
     history.push({ label, snapshot: deepCloneState() });
@@ -282,134 +255,128 @@ function guessPrefixFromClassName(name){
   }
 
   const int = (n) => Math.max(0, Math.trunc(Number(n)||0));
+  function escapeHtml(s){ return String(s).replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#039;"}[m])); }
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
-
-  function setDirty(){
-  updateDirtyButtons(); // counts class-title edits too
-}
+  function setDirty(){ updateDirtyButtons(); }
   function resetState(){
-  rows = [];
-  staged = { add:new Map(), edit:new Map(), del:new Map() };
-  stagedClass = null;                   // NEW: clear class-title staging
-  renderTable();
-  if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
-  updateDirtyButtons();                 // NEW: centralize buttons state
-  log("--- state cleared ---");
-}
-
+    rows = [];
+    staged = { add:new Map(), edit:new Map(), del:new Map() };
+    stagedClass = null;
+    renderTable();
+    if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+    updateDirtyButtons();
+    log("--- state cleared ---");
+  }
 
   function renderTable(){
     tbl.innerHTML = "";
     rows.forEach((r,i)=>{
-    const tr = document.createElement("tr");
-    if(r._state==="add") tr.classList.add("add");
-    if(r._state==="edit") tr.classList.add("edit");
-    if(r._state==="del") tr.classList.add("del");
-    tr.innerHTML = `
-    <td>${i+1}</td>
-    <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
-    <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
-    <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
-    <td>
-  <div class="toolbar">
-    <button class="btn btnDel" title="Delete / Undo">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M3 6h18M8 6v-.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V6m-8 0v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <button class="btn btnRevert" title="Revert to Firestore">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M9 10H5V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M5 10a7 7 0 1 0 2.05-4.95L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-  </div>
-</td>`;
-    tbl.appendChild(tr);
-    const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
-    tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
-const revertBtn = tr.querySelector(".btnRevert");
-if (revertBtn) revertBtn.addEventListener("click",()=>revertRow(i));
-    idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
-    nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
-    ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
-    
-    
-    [idEl, nameEl, ptsEl].forEach(el => {
-    el.addEventListener("keydown", ev => {
-    if (ev.key === "Enter") {
-    ev.preventDefault();
-    ev.currentTarget.blur();
+      const tr = document.createElement("tr");
+      if(r._state==="add") tr.classList.add("add");
+      if(r._state==="edit") tr.classList.add("edit");
+      if(r._state==="del") tr.classList.add("del");
+      tr.innerHTML = \`
+        <td>\${i+1}</td>
+        <td><input class="cell id" value="\${escapeHtml(r.id)}" \${r._state==="del"?"disabled":""}></td>
+        <td><input class="cell name" value="\${escapeHtml(r.name||"")}" \${r._state==="del"?"disabled":""}></td>
+        <td><input class="cell points" type="number" min="0" value="\${int(r.points||0)}" \${r._state==="del"?"disabled":""}></td>
+        <td>
+          <div class="toolbar">
+            <button class="btn btnDel" title="Delete / Undo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 6h18M8 6v-.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V6m-8 0v12a2 2 0 0 0 2 2h4a 2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="btn btnRevert" title="Revert to Firestore">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M9 10H5V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 10a7 7 0 1 0 2.05-4.95L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </td>\`;
+      tbl.appendChild(tr);
+      const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
+      tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
+      const revertBtn = tr.querySelector(".btnRevert");
+      if (revertBtn) revertBtn.addEventListener("click",()=>revertRow(i));
+      idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
+      nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
+      ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
+      [idEl, nameEl, ptsEl].forEach(el => {
+        el.addEventListener("keydown", ev => {
+          if (ev.key === "Enter") { ev.preventDefault(); ev.currentTarget.blur(); }
+        });
+      });
+    });
+  }
+
+  function updateDirtyButtons(){
+    const dirty = (staged.add.size || staged.edit.size || staged.del.size || !!stagedClass);
+    byId("btnSave").disabled = !dirty;
+    byId("btnDiscard").disabled = !dirty;
+  }
+
+  function revertRow(idx){
+    pushHistory('revertRow');
+    const r = rows[idx];
+    const baseId = r._baselineId || r.id;
+    const base = serverBaseline.get(baseId);
+
+    if (!base) {
+      staged.add.delete(r.id);
+      staged.edit.delete(r.id);
+      staged.del.delete(r.id);
+      rows.splice(idx, 1);
+      updateDirtyButtons();
+      renderTable();
+      return;
     }
-    });
-    });
-    });
-    }
-function updateDirtyButtons(){
-  // unified dirty-state: includes class-level staging
-  const dirty = (staged.add.size || staged.edit.size || staged.del.size || !!stagedClass);
-  byId("btnSave").disabled = !dirty;
-  byId("btnDiscard").disabled = !dirty;
-}
+    r.id = base.id;
+    r.name = base.name || "";
+    r.points = int(base.points || 0);
+    r._state = undefined;
+    delete r._origState; delete r._origId;
 
-
-function revertRow(idx){
-  pushHistory('revertRow');
-  const r = rows[idx];
-  const baseId = r._baselineId || r.id;
-  const base = serverBaseline.get(baseId);
-
-  // If this row doesn't exist on the server (local add), remove it
-  if (!base) {
     staged.add.delete(r.id);
     staged.edit.delete(r.id);
     staged.del.delete(r.id);
-    rows.splice(idx, 1);
+
     updateDirtyButtons();
     renderTable();
-    return;
   }
 
-  // Revert fields to latest Firestore values
-  r.id = base.id;
-  r.name = base.name || "";
-  r.points = int(base.points || 0);
-  r._state = undefined;
-  delete r._origState; delete r._origId;
+  function toggleDelete(idx){
+    pushHistory('toggleDelete');
+    const r=rows[idx];
+    if(r._state==="del"){
+      r._state=r._origState||undefined;
+      staged.del.delete(r._origId||r.id);
+    } else {
+      r._origState=r._state;
+      r._state="del";
+      r._origId=r.id;
+      staged.del.set(r.id,true);
+      staged.add.delete(r.id);
+      staged.edit.delete(r.id);
+    }
+    setDirty(); renderTable();
+  }
 
-  // Clear staged changes for this row
-  staged.add.delete(r.id);
-  staged.edit.delete(r.id);
-  staged.del.delete(r.id);
-
-  updateDirtyButtons();
-  renderTable();
-}
-
-  function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function markEdit(idx, patch) {
     pushHistory('markEdit');
     const r = rows[idx];
     if (r._state === "del") return;
 
     const prevId = r.id;
-
-    // Apply patch to the in-memory row first
     Object.assign(r, patch);
     if (patch.points !== undefined) r.points = int(patch.points);
 
-    // If the ID changed, treat as a rename: delete old id, add new id
     if (patch.id && patch.id !== prevId) {
       staged.del.set(prevId, true);
-      staged.add.set(r.id, {
-        id: r.id,
-        name: r.name || "",
-        points: int(r.points || 0),
-      });
+      staged.add.set(r.id, { id: r.id, name: r.name || "", points: int(r.points || 0) });
       r._state = "edit";
     } else {
-      // For newly added rows, keep the staging in staged.add (not staged.edit)
       if (staged.add.has(r.id) || r._state === "add") {
         const cur = staged.add.get(r.id) || { id: r.id, name: "", points: 0 };
         const next = { ...cur, id: r.id };
@@ -417,7 +384,6 @@ function revertRow(idx){
         if (patch.points !== undefined) next.points = int(r.points || 0);
         staged.add.set(r.id, next);
       } else {
-        // Existing row: stage partial edits
         const cur = staged.edit.get(r.id) || {};
         const next = { ...cur };
         if (patch.name !== undefined) next.name = r.name;
@@ -427,181 +393,149 @@ function revertRow(idx){
         if (r._state !== "add") r._state = "edit";
       }
     }
-
-    setDirty();
-    renderTable();
+    setDirty(); renderTable();
   }
 
-  // Step 1 — replaced addRow() with autofocus and Enter-to-blur on the name field
   function addRow(){
     pushHistory('addRow');
-    const id = `${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`;
+    const id = \`\${byId("idPrefix").value.trim()}\${String(rows.length+1).padStart(4,"0")}\`;
     const r = { id, name:"", points:0, _state:"add" };
     rows.push(r);
     staged.add.set(id,{ id, name:"", points:0 });
-    setDirty();
-    renderTable();
-
-    // Auto-focus the new row's name input
+    setDirty(); renderTable();
     setTimeout(() => {
       const lastRow = tbl.lastElementChild;
       if (lastRow) {
         const nameInput = lastRow.querySelector("input.cell.name");
         if (nameInput) {
           nameInput.focus();
-          // Pressing Enter blurs → triggers existing change listener → stages edit
-          nameInput.addEventListener("keydown", e => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              nameInput.blur();
-            }
-          }, { once: true });
+          nameInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); nameInput.blur(); } }, { once: true });
         }
       }
     }, 0);
   }
-// Rename a class by copying to a new doc id, then optionally deleting the old one.
-async function renameClassDoc(oldId, newId, { deleteOld = false } = {}) {
-  if (!oldId || !newId) { alert("Both old and new class names are required."); return; }
-  if (oldId === newId) { alert("New class name must be different."); return; }
-  if (/[\/#?[\]]/.test(newId)) { alert("Invalid characters in class name."); return; }
 
-  // If destination exists already, bail.
-  const destRef = doc(db, "classes", newId);
-  const destSnap = await getDoc(destRef);
-  if (destSnap.exists()) { alert(`A class named "${newId}" already exists.`); return; }
+  // Rename class doc (copy → optional delete)
+  async function renameClassDoc(oldId, newId, { deleteOld = false } = {}) {
+    if (!oldId || !newId) { alert("Both old and new class names are required."); return; }
+    if (oldId === newId) { alert("New class name must be different."); return; }
+    if (/[\\/#[\\]?]/.test(newId)) { alert("Invalid characters in class name."); return; }
 
-  log(`Renaming class: ${oldId} → ${newId} (copying docs)…`);
+    const destRef = doc(db, "classes", newId);
+    const destSnap = await getDoc(destRef);
+    if (destSnap.exists()) { alert(\`A class named "\${newId}" already exists.\`); return; }
 
-  // 1) Copy class-level metadata (merge stagedClass if present)
-  const srcRef = doc(db, "classes", oldId);
-  const srcSnap = await getDoc(srcRef);
-  const baseMeta = srcSnap.exists() ? srcSnap.data() : {};
-  const mergedMeta = {
-    ...baseMeta,
-    ...(stagedClass || {}),              // keep any staged displayName/idPrefix if you want them on the new class
-    displayName: (stagedClass && stagedClass.displayName) || baseMeta.displayName || newId,
-    updatedAt: Date.now(),
-    createdFrom: oldId,
-  };
+    log(\`Renaming class: \${oldId} → \${newId} (copying docs)…\`);
 
-  let batch = writeBatch(db);
-  let ops = 0;
-  const commitIfFull = async () => { if (ops && ops % 400 === 0) { await batch.commit(); batch = writeBatch(db); } };
-
-  batch.set(destRef, mergedMeta, { merge: true }); ops++;
-
-  // 2) Copy all students
-  const studentsSnap = await getDocs(collection(db, "classes", oldId, "students"));
-  studentsSnap.forEach(d => {
-    batch.set(doc(db, "classes", newId, "students", d.id), d.data(), { merge: true });
-    ops++;
-  });
-  await commitIfFull();
-  await batch.commit();
-
-  log(`Copied ${studentsSnap.size} students to "${newId}".`);
-
-  // 3) Optionally delete the old class (students first, then doc)
-  if (deleteOld) {
-    log(`Deleting old class "${oldId}"…`);
-    const delBatchSize = 400;
-    let delBatch = writeBatch(db);
-    let delOps = 0;
-
-    // delete students
-    const again = await getDocs(collection(db, "classes", oldId, "students"));
-    again.forEach(d => {
-      delBatch.delete(doc(db, "classes", oldId, "students", d.id));
-      if (++delOps % delBatchSize === 0) { delBatch.commit(); delBatch = writeBatch(db); }
-    });
-    await delBatch.commit();
-
-    // delete class doc
-    const finalBatch = writeBatch(db);
-    finalBatch.delete(srcRef);
-    await finalBatch.commit();
-
-    log(`Old class "${oldId}" deleted.`);
-  }
-
-  // 4) Switch UI to the new class
-  currentClass = newId;
-  byId("className").value = newId;
-  staged = { add:new Map(), edit:new Map(), del:new Map() };
-  stagedClass = null;
-  history = []; future = [];
-  await loadClass(); // this will attach listeners to the new class
-  updateDirtyButtons();
-}
-
-  async function loadClass(){
-  const className = byId("className").value.trim();
-  if(!className){ alert("Enter a class name"); return; }
-  currentClass = className;
-  resetState();
-
-  // Clean up previous listeners
-  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-  if (unsubClassMeta) { unsubClassMeta(); unsubClassMeta = null; }
-
-  // --- Class metadata snapshot (displayName, idPrefix) ---
-  const classRef = doc(db, "classes", className);
-  unsubClassMeta = onSnapshot(classRef, (snap) => {
-    const data = snap.data() || {};
-    classMetaBaseline = {
-      displayName: data.displayName || className,
-      idPrefix: data.idPrefix || ""
+    const srcRef = doc(db, "classes", oldId);
+    const srcSnap = await getDoc(srcRef);
+    const baseMeta = srcSnap.exists() ? srcSnap.data() : {};
+    const mergedMeta = {
+      ...baseMeta,
+      ...(stagedClass || {}),
+      displayName: (stagedClass && stagedClass.displayName) || baseMeta.displayName || newId,
+      updatedAt: Date.now(),
+      createdFrom: oldId,
     };
 
-    // If no staged class edit, mirror baseline into working copy
-    if (!stagedClass) classMeta = { ...classMetaBaseline };
+    let batch = writeBatch(db);
+    let ops = 0;
+    const commitIfFull = async () => { if (ops && ops % 400 === 0) { await batch.commit(); batch = writeBatch(db); } };
 
-    // Show the title
-    byId("classTitle").textContent = classMeta.displayName || className;
+    batch.set(destRef, mergedMeta, { merge: true }); ops++;
 
-    // Autofill prefix from doc if teacher hasn't typed one
-    if (!idPrefixTouched && data.idPrefix) {
-      byId("idPrefix").value = data.idPrefix;
-    }
-  }, (err) => log("class meta listen:", err.code || err.message));
-
-  // --- Students snapshot (unchanged from your current version) ---
-  const coll = collection(db, "classes", className, "students");
-  const processSnap = (snap) => {
-    rows = [];
-    serverBaseline = new Map();
-    snap.forEach(d => {
-      const data = d.data();
-      const row = {
-        id: d.id,
-        name: data.name || "",
-        points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
-        daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
-      };
-      rows.push(row);
-      serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
+    const studentsSnap = await getDocs(collection(db, "classes", oldId, "students"));
+    studentsSnap.forEach(d => {
+      batch.set(doc(db, "classes", newId, "students", d.id), d.data(), { merge: true });
+      ops++;
     });
-    renderTable();
+    await commitIfFull();
+    await batch.commit();
 
-updateDirtyButtons();
+    log(\`Copied \${studentsSnap.size} students to "\${newId}".\`);
 
-// (Optional) prefix guess from rows if teacher hasn't touched it and doc didn't provide
-if(!idPrefixTouched && !byId("idPrefix").value){
-      const byRows = guessPrefixFromRows(rows) || "";
-      const byName = guessPrefixFromClassName(className) || "";
-      const pick = byRows || byName;
-      if (pick) byId("idPrefix").value = pick;
+    if (deleteOld) {
+      log(\`Deleting old class "\${oldId}"…\`);
+      const delBatchSize = 400;
+      let delBatch = writeBatch(db);
+      let delOps = 0;
+      const again = await getDocs(collection(db, "classes", oldId, "students"));
+      again.forEach(d => {
+        delBatch.delete(doc(db, "classes", oldId, "students", d.id));
+        if (++delOps % delBatchSize === 0) { delBatch.commit(); delBatch = writeBatch(db); }
+      });
+      await delBatch.commit();
+      const finalBatch = writeBatch(db);
+      finalBatch.delete(srcRef);
+      await finalBatch.commit();
+      log(\`Old class "\${oldId}" deleted.\`);
     }
 
-    log(`Loaded ${rows.length} students for ${className}`);
+    currentClass = newId;
+    byId("className").value = newId;
+    staged = { add:new Map(), edit:new Map(), del:new Map() };
+    stagedClass = null;
     history = []; future = [];
-  };
+    await loadClass();
+    updateDirtyButtons();
+  }
 
-  unsubscribe = onSnapshot(query(coll), processSnap, (err) =>
-    log("students listen:", err.code || err.message)
-  );
-}
+  async function loadClass(){
+    const className = byId("className").value.trim();
+    if(!className){ alert("Enter a class name"); return; }
+    currentClass = className;
+    resetState();
+
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    if (unsubClassMeta) { unsubClassMeta(); unsubClassMeta = null; }
+
+    const classRef = doc(db, "classes", className);
+    unsubClassMeta = onSnapshot(classRef, (snap) => {
+      const data = snap.data() || {};
+      classMetaBaseline = {
+        displayName: data.displayName || className,
+        idPrefix: data.idPrefix || ""
+      };
+      if (!stagedClass) classMeta = { ...classMetaBaseline };
+      byId("classTitle").textContent = classMeta.displayName || className;
+      if (!idPrefixTouched && data.idPrefix) {
+        byId("idPrefix").value = data.idPrefix;
+      }
+    }, (err) => log("class meta listen:", err.code || err.message));
+
+    const coll = collection(db, "classes", className, "students");
+    const processSnap = (snap) => {
+      rows = [];
+      serverBaseline = new Map();
+      snap.forEach(d => {
+        const data = d.data();
+        const row = {
+          id: d.id,
+          name: data.name || "",
+          points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+          daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
+        };
+        rows.push(row);
+        serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
+      });
+      renderTable();
+      updateDirtyButtons();
+
+      if(!idPrefixTouched && !byId("idPrefix").value){
+        const byRows = guessPrefixFromRows(rows) || "";
+        const byName = guessPrefixFromClassName(className) || "";
+        const pick = byRows || byName;
+        if (pick) byId("idPrefix").value = pick;
+      }
+      log(\`Loaded \${rows.length} students for \${className}\`);
+      history = []; future = [];
+    };
+
+    unsubscribe = onSnapshot(query(coll), processSnap, (err) =>
+      log("students listen:", err.code || err.message)
+    );
+  }
+
   async function createClass(){
     const className = byId('className').value.trim();
     if(!className){ alert('Enter a class name'); return; }
@@ -611,246 +545,146 @@ if(!idPrefixTouched && !byId("idPrefix").value){
       const b = writeBatch(db);
       b.set(doc(db,'classes',className), { idPrefix: prefix, createdAt: Date.now() }, { merge:true });
       await b.commit();
-      log(`Class "${className}" created/updated.`);
+      log(\`Class "\${className}" created/updated.\`);
       await loadClass();
     }catch(e){
-      log(`Create class failed: ${e.code||'error'} - ${e.message||e}`);
+      log(\`Create class failed: \${e.code||'error'} - \${e.message||e}\`);
       alert('Create class failed. Check rules and auth.');
     }
   }
 
-  
   async function saveChanges(){
-  if(!currentClass){ alert("Load a class first."); return; }
-  if(!isSignedIn()){ alert("Sign in to save changes."); return; }
+    if(!currentClass){ alert("Load a class first."); return; }
+    if(!isSignedIn()){ alert("Sign in to save changes."); return; }
 
-  try{
-    const uid = auth.currentUser && auth.currentUser.uid;
-    const email = (auth.currentUser && auth.currentUser.email) || '(no email)';
-    log(`Saving as uid=${uid || 'unknown'} email=${email}`);
+    try{
+      const uid = auth.currentUser && auth.currentUser.uid;
+      const email = (auth.currentUser && auth.currentUser.email) || '(no email)';
+      log(\`Saving as uid=\${uid || 'unknown'} email=\${email}\`);
 
-    const batch = writeBatch(db);
+      const batch = writeBatch(db);
 
-    // 1) Apply staged deletes
-    staged.del.forEach((_, id) => {
-      batch.delete(doc(db, "classes", currentClass, "students", id));
-    });
+      staged.del.forEach((_, id) => {
+        batch.delete(doc(db, "classes", currentClass, "students", id));
+      });
 
-    // 2) Apply staged adds
-    staged.add.forEach((data, id) => {
-      batch.set(
-        doc(db, "classes", currentClass, "students", id),
-        {
-          id: data.id,
-          name: data.name || "",
-          points: { daily: 0, total: int(data.points || 0) }
-        },
-        { merge: true }
-      );
-    });
-
-    // 3) Apply staged edits (skip anything that was an add in this same batch)
-    staged.edit.forEach((patch, id) => {
-      if (!staged.add.has(id)) {
-        const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
-        const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
-        const total = (patch.points !== undefined) ? int(patch.points) : int(existing.points || 0);
-        const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
-
+      staged.add.forEach((data, id) => {
         batch.set(
           doc(db, "classes", currentClass, "students", id),
-          { id, name, points: { daily, total } },
+          { id: data.id, name: data.name || "", points: { daily: 0, total: int(data.points || 0) } },
           { merge: true }
         );
+      });
+
+      staged.edit.forEach((patch, id) => {
+        if (!staged.add.has(id)) {
+          const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
+          const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
+          const total = (patch.points !== undefined) ? int(patch.points) : int(existing.points || 0);
+          const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
+
+          batch.set(
+            doc(db, "classes", currentClass, "students", id),
+            { id, name, points: { daily, total } },
+            { merge: true }
+          );
+        }
+      });
+
+      const classCount = stagedClass ? 1 : 0;
+      const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
+      if (!total) { log("No changes to save."); return; }
+
+      if (classCount) {
+        batch.set(doc(db, "classes", currentClass), stagedClass, { merge: true });
       }
-    });
 
-    // 4) Early-return check OUTSIDE loops (also counts class meta edits)
-    const classCount = stagedClass ? 1 : 0;
-    const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
-    if (!total) { log("No changes to save."); return; }
+      await batch.commit();
+      log(\`Saved: del=\${staged.del.size} add=\${staged.add.size} edit=\${staged.edit.size} class=\${classCount}\`);
 
-    // 5) Persist class metadata (e.g., displayName) if staged
-    if (classCount) {
-      batch.set(
-        doc(db, "classes", currentClass),
-        stagedClass,
-        { merge: true }
-      );
+      rows = rows
+        .filter(r => !staged.del.has(r.id))
+        .map(r => ({ id: r.id, name: r.name, points: int(r.points) }));
+
+      staged = { add:new Map(), edit:new Map(), del:new Map() };
+      stagedClass = null;
+      if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+
+      renderTable();
+      updateDirtyButtons();
+      history = []; future  = [];
+    } catch(e){
+      const code = e && e.code ? e.code : 'unknown';
+      const msg  = e && e.message ? e.message : String(e);
+      log(\`Save failed: \${code} - \${msg}\`);
+      alert(\`Save failed: \${code}. Check Firestore security rules and auth.\`);
+      throw e;
     }
-
-    // 6) Commit
-    await batch.commit();
-    log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size} class=${classCount}`);
-
-    // 7) Local state cleanup
-    rows = rows
-      .filter(r => !staged.del.has(r.id))
-      .map(r => ({ id: r.id, name: r.name, points: int(r.points) }));
-
-    staged = { add:new Map(), edit:new Map(), del:new Map() };
-    stagedClass = null;
-    if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
-
-    renderTable();
-    updateDirtyButtons();      // single source of truth for Save/Discard
-    history = [];
-    future  = [];
-
-  } catch(e){
-    const code = e && e.code ? e.code : 'unknown';
-    const msg  = e && e.message ? e.message : String(e);
-    log(`Save failed: ${code} - ${msg}`);
-    alert(`Save failed: ${code}. Check Firestore security rules and auth.`);
-    throw e;
   }
-}
-
 
   function discardChanges(){ loadClass(); }
 
-  // ===== CSV Import (Step 4) =====
-
-  
-function parseCSV(text){
-  const normalized = (text || '').replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-
-  const first = lines[0];
-  const headerish = /id|name|points/i.test(first) && first.includes(',');
-  const rows = headerish ? lines.slice(1) : lines;
-  const headers = headerish ? first.split(',').map(h=>h.trim().toLowerCase()) : [];
-
-  return rows.map(l => {
-    const cols = l.split(',');
-    const pick = (key, fallbackIndex) => {
+  // ===== CSV Import =====
+  function parseCSV(text){ /* kept for future use */ const normalized=(text||'').replace(/\\r\\n?/g,'\\n'); const lines=normalized.split('\\n').map(l=>l.trim()).filter(Boolean); if(!lines.length) return []; const first=lines[0]; const headerish=/id|name|points/i.test(first)&&first.includes(','); const rows=headerish?lines.slice(1):lines; const headers=headerish?first.split(',').map(h=>h.trim().toLowerCase()):[]; return rows.map(l=>{ const cols=l.split(','); const pick=(key,fallbackIndex)=>{ if(headerish){ const idx=headers.indexOf(key); return idx>=0?(cols[idx]||'').trim():'';} return (cols[fallbackIndex]||'').trim();}; const name=headerish?pick('name',0):pick('',0); const id=headerish?pick('id',2):''; const points=headerish?pick('points',1):pick('',1); return { id, name, points }; }).filter(r=>r.name||r.id); }
+  function parseFileToNames(text){ const normalized=(text||'').replace(/\\r\\n?/g,'\\n'); return normalized.split('\\n').map(l=>l.trim()).filter(Boolean).map(l=>l.split(',')[0].trim()).filter(Boolean); }
+  function parseRoster(text){
+    const normalized = (text || '').replace(/\\r\\n?/g, '\\n');
+    const lines = normalized.split('\\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return [];
+    const split = (l) => (l.includes('\\t') ? l.split('\\t') : l.split(',')).map(s => s.trim());
+    const firstCols = split(lines[0]);
+    const headerish = firstCols.some(h => /^(id|index|name|points)$/i.test(h));
+    const rows = headerish ? lines.slice(1) : lines;
+    const headers = headerish ? firstCols.map(h => h.toLowerCase()) : [];
+    const getByHeader = (cols, key) => { const i = headers.indexOf(key); return i >= 0 ? (cols[i] || '').trim() : ''; };
+    return rows.map(l => {
+      const cols = split(l);
+      let rawIndex = '', rawId = '', name = '', points = '';
       if (headerish) {
-        const idx = headers.indexOf(key);
-        return idx >= 0 ? (cols[idx] || '').trim() : '';
-      }
-      return (cols[fallbackIndex] || '').trim();
-    };
-    const name   = headerish ? pick('name',   0) : pick('', 0);
-    const id     = headerish ? pick('id',     2) : '';
-    const points = headerish ? pick('points', 1) : pick('', 1);
-    return { id, name, points };
-  }).filter(r => r.name || r.id);
-}
-
-
-function parseFileToNames(text){
-    const normalized = (text || '').replace(/\r\n?/g, '\n');
-    return normalized
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean)
-      .map(l => l.split(',')[0].trim())
-      .filter(Boolean);
-  }
-// --- Roster parser: col1=index (numeric), col2=name, optional col3=points ---
-// Supports both tab-delimited TXT and CSV; accepts optional header row
-function parseRoster(text){
-  const normalized = (text || '').replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-
-  // Prefer tab; fall back to comma per line
-  const split = (l) => (l.includes('\t') ? l.split('\t') : l.split(',')).map(s => s.trim());
-
-  const firstCols = split(lines[0]);
-  const headerish = firstCols.some(h => /^(id|index|name|points)$/i.test(h));
-  const rows = headerish ? lines.slice(1) : lines;
-  const headers = headerish ? firstCols.map(h => h.toLowerCase()) : [];
-
-  const getByHeader = (cols, key) => {
-    const i = headers.indexOf(key);
-    return i >= 0 ? (cols[i] || '').trim() : '';
-  };
-
-  return rows.map(l => {
-    const cols = split(l);
-    let rawIndex = '', rawId = '', name = '', points = '';
-
-    if (headerish) {
-      rawId    = getByHeader(cols, 'id');     // if present
-      rawIndex = getByHeader(cols, 'index');  // if present
-      name     = getByHeader(cols, 'name');
-      points   = getByHeader(cols, 'points');
-    } else {
-      // Expected: [index, name, (points?)]
-      if (/^\d+$/.test(cols[0]) && cols[1]) {
-        rawIndex = cols[0];
-        name     = cols[1];
-        points   = cols[2] || '';
+        rawId    = getByHeader(cols, 'id');
+        rawIndex = getByHeader(cols, 'index');
+        name     = getByHeader(cols, 'name');
+        points   = getByHeader(cols, 'points');
       } else {
-        // Fallback: name[,points]
-        name   = cols[0] || '';
-        points = cols[1] || '';
+        if (/^\\d+$/.test(cols[0]) && cols[1]) { rawIndex = cols[0]; name = cols[1]; points = cols[2] || ''; }
+        else { name = cols[0] || ''; points = cols[1] || ''; }
       }
-    }
-
-    // Keep nicknames in parentheses as part of the name
-    name = (name || '').trim();
-
-    return { rawIndex, rawId, name, points };
-  }).filter(r => r.name || r.rawId);
-}
+      name = (name || '').trim();
+      return { rawIndex, rawId, name, points };
+    }).filter(r => r.name || r.rawId);
+  }
 
   async function importDry(){
-  if(!currentClass){ alert("Load a class first."); return; }
-  if(!isSignedIn()){ alert("Sign in to run import."); return; }
+    if(!currentClass){ alert("Load a class first."); return; }
+    if(!isSignedIn()){ alert("Sign in to run import."); return; }
+    const f = byId("file");
+    if(!f.files || !f.files.length){ alert("Choose a CSV/TXT file."); return; }
+    const text = await f.files[0].text();
+    const rowsCsv = parseRoster(text);
+    if(!rowsCsv.length){ alert("No rows detected in file."); return; }
+    const pref = byId("idPrefix").value.trim();
+    if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
 
-  const f = byId("file");
-  if(!f.files || !f.files.length){ alert("Choose a CSV/TXT file."); return; }
+    const used = new Set(rows.map(r => r.id));
+    const pad  = (n, width=4) => String(n).padStart(width, "0");
+    let seq = 1;
+    const nextSeqId = () => { let id; do { id = \`\${pref}\${pad(seq++)}\`; } while (used.has(id)); used.add(id); return id; };
 
-  const text = await f.files[0].text();
-  const rowsCsv = parseRoster(text);
-  if(!rowsCsv.length){ alert("No rows detected in file."); return; }
+    const toPlanId = (r) => {
+      if (r.rawIndex && /^\\d+$/.test(r.rawIndex)) { const id = \`\${pref}\${pad(parseInt(r.rawIndex, 10))}\`; used.add(id); return id; }
+      if (r.rawId && !used.has(r.rawId)) { used.add(r.rawId); return r.rawId; }
+      return nextSeqId();
+    };
 
-  const pref = byId("idPrefix").value.trim();
-  if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
-
-  // Track used IDs to avoid collisions with existing rows
-  const used = new Set(rows.map(r => r.id));
-  const pad  = (n, width=4) => String(n).padStart(width, "0");
-
-  // For auto-generated fallback sequence
-  let seq = 1;
-  const nextSeqId = () => {
-    let id;
-    do { id = `${pref}${pad(seq++)}`; } while (used.has(id));
-    used.add(id);
-    return id;
-  };
-
-  const toPlanId = (r) => {
-    // 1) If file has a numeric index in col 1 -> prefix + padded index
-    if (r.rawIndex && /^\d+$/.test(r.rawIndex)) {
-      const id = `${pref}${pad(parseInt(r.rawIndex, 10))}`;
-      used.add(id);
-      return id;
-    }
-    // 2) If file already provided a full ID -> use it
-    if (r.rawId && !used.has(r.rawId)) {
-      used.add(r.rawId);
-      return r.rawId;
-    }
-    // 3) Otherwise auto-generate (rare path)
-    return nextSeqId();
-  };
-
-  const plan = rowsCsv.map(r => ({
-    id: toPlanId(r),
-    name: (r.name || '').trim(),                          // keep parentheses if present
-    points: Math.max(0, Math.trunc(Number(r.points || 0) || 0)),
-  }));
-
-  log(`Dry Run: ${plan.length} to add/merge`);
-  byId("btnImportCommit").disabled = false;
-  byId("btnImportCommit")._plan = plan;
-}
-
+    const plan = rowsCsv.map(r => ({
+      id: toPlanId(r),
+      name: (r.name || '').trim(),
+      points: Math.max(0, Math.trunc(Number(r.points || 0) || 0)),
+    }));
+    log(\`Dry Run: \${plan.length} to add/merge\`);
+    byId("btnImportCommit").disabled = false;
+    byId("btnImportCommit")._plan = plan;
+  }
 
   async function importCommit(){
     const plan=byId("btnImportCommit")._plan||[];
@@ -867,47 +701,69 @@ function parseRoster(text){
       batch.set(doc(db,...base,p.id), { id:p.id, name:p.name, points:{ daily:0, total:0 } }, { merge:true });
     }
     await batch.commit();
-    log(`Import committed: ${plan.length} students (mode=${mode})`);
+    log(\`Import committed: \${plan.length} students (mode=\${mode})\`);
     byId("btnImportCommit").disabled=true;
     loadClass();
   }
-function startClassesListener(){
-  // clean up previous listener
-  if (unsubClasses) { unsubClasses(); unsubClasses = null; }
 
-  const classesCol = collection(db, "classes");
-  unsubClasses = onSnapshot(
-    classesCol,
-    (snap) => {
-      const items = [];
-      snap.forEach(docSnap => {
-        const data = docSnap.data() || {};
-        const id = docSnap.id;
-        const label = data.displayName || id;
-        items.push({ id, label });
-      });
+  function startClassesListener(){
+    if (unsubClasses) { unsubClasses(); unsubClasses = null; }
+    const classesCol = collection(db, "classes");
+    unsubClasses = onSnapshot(
+      classesCol,
+      (snap) => {
+        const items = [];
+        snap.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          const id = docSnap.id;
+          const label = data.displayName || id;
+          items.push({ id, label });
+        });
+        items.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" }));
+        const sel = byId("className");
+        const prev = sel.value;
+        sel.innerHTML =
+          '<option value="" disabled>— Select a class —</option>' +
+          items.map(it => \`<option value="\${it.id}">\${escapeHtml(it.label)}</option>\`).join("");
+        if (items.some(it => it.id === prev)) { sel.value = prev; } else { sel.selectedIndex = 0; }
+      },
+      (err) => log("classes list listen:", err.code || err.message)
+    );
+  }
 
-      // sort nicely (handles "Grade 2" before "Grade 10")
-      items.sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" })
-      );
-
-      const sel = byId("className");
-      const prev = sel.value;
-      sel.innerHTML =
-        '<option value="" disabled>— Select a class —</option>' +
-        items.map(it => `<option value="${it.id}">${escapeHtml(it.label)}</option>`).join("");
-
-      // keep current selection if it still exists
-      if (items.some(it => it.id === prev)) {
-        sel.value = prev;
-      } else {
-        sel.selectedIndex = 0; // show placeholder
-      }
-    },
-    (err) => log("classes list listen:", err.code || err.message)
-  );
-}
+  // ===== Modal helpers for Create Class =====
+  function openCreateClassModal(){
+    const modal = byId('createClassModal');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    const input = byId('newClassName');
+    input.value = '';
+    setTimeout(()=>input.focus(), 0);
+  }
+  function closeCreateClassModal(){
+    const modal = byId('createClassModal');
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+  }
+  async function createClassFromModal(){
+    const newId = byId('newClassName').value.trim();
+    if (!newId) { alert('Enter a class name.'); return; }
+    // Suggest/keep prefix from input; if empty, guess from class name
+    let prefix = byId('idPrefix').value.trim();
+    if (!prefix) { prefix = guessPrefixFromClassName(newId) || 'G1_'; byId('idPrefix').value = prefix; }
+    try{
+      const b = writeBatch(db);
+      b.set(doc(db,'classes',newId), { displayName: newId, idPrefix: prefix, createdAt: Date.now() }, { merge:true });
+      await b.commit();
+      log(\`Class "\${newId}" created.\`);
+      closeCreateClassModal();
+      byId('className').value = newId;
+      await loadClass();
+    }catch(e){
+      log(\`Create class failed: \${e.code||'error'} - \${e.message||e}\`);
+      alert('Create class failed. Check rules and auth.');
+    }
+  }
 
   // ===== Button wiring =====
   function updateAuthUI(user){
@@ -916,137 +772,103 @@ function startClassesListener(){
     const signInBtn = byId('btnSignIn');
     const signOutBtn = byId('btnSignOut');
     if(user){
-      status.classList.remove('signedout');
-      status.classList.add('signedin');
-      textEl.textContent = `Signed in as ${user.displayName || user.email || 'User'}`;
-      signInBtn.disabled = true;
-      signOutBtn.disabled = false;
+      status.classList.remove('signedout'); status.classList.add('signedin');
+      textEl.textContent = \`Signed in as \${user.displayName || user.email || 'User'}\`;
+      signInBtn.disabled = true; signOutBtn.disabled = false;
     } else {
-      status.classList.remove('signedin');
-      status.classList.add('signedout');
+      status.classList.remove('signedin'); status.classList.add('signedout');
       textEl.textContent = 'Signed out';
-      signInBtn.disabled = false;
-      signOutBtn.disabled = true;
+      signInBtn.disabled = false; signOutBtn.disabled = true;
     }
   }
-byId('btnRenameClass').addEventListener('click', async () => {
-  if (!currentClass) { alert("Load a class first."); return; }
-  const suggestion = (classMeta && classMeta.displayName) ? classMeta.displayName : currentClass;
-  const newId = prompt("New Firestore class name (document id):", suggestion);
-  if (newId == null) return;
 
-  const confirmDelete = confirm("Copy to the new class and delete the old one afterwards?\nChoose OK to move (delete old), or Cancel to keep both.");
-  try {
-    await renameClassDoc(currentClass, newId.trim(), { deleteOld: confirmDelete });
-  } catch (e) {
-    log(`Rename failed: ${e.code || 'error'} - ${e.message || e}`);
-    alert("Rename failed. See Change Log for details.");
-  }
-});
-
-  byId('btnSignIn').addEventListener('click', async () => {
-    try{
-      await signInWithPopup(auth, provider);
-      log('Sign-in popup completed.');
-    }catch(e){
-      log('Sign-in error:', e.code || e.message);
-      alert(`Sign-in failed: ${e.code || e.message}`);
-    }
+  byId('btnRenameClass').addEventListener('click', async () => {
+    if (!currentClass) { alert("Load a class first."); return; }
+    const suggestion = (classMeta && classMeta.displayName) ? classMeta.displayName : currentClass;
+    const newId = prompt("New Firestore class name (document id):", suggestion);
+    if (newId == null) return;
+    const confirmDelete = confirm("Copy to the new class and delete the old one afterwards?\\nChoose OK to move (delete old), or Cancel to keep both.");
+    try { await renameClassDoc(currentClass, newId.trim(), { deleteOld: confirmDelete }); }
+    catch (e) { log(\`Rename failed: \${e.code || 'error'} - \${e.message || e}\`); alert("Rename failed. See Change Log for details."); }
   });
 
+  byId('btnSignIn').addEventListener('click', async () => {
+    try{ await signInWithPopup(auth, provider); log('Sign-in popup completed.'); }
+    catch(e){ log('Sign-in error:', e.code || e.message); alert(\`Sign-in failed: \${e.code || e.message}\`); }
+  });
   byId('btnSignOut').addEventListener('click', async () => {
     try{ await signOut(auth); log('Signed out.'); }
     catch(e){ log('Sign-out error:', e.code || e.message); }
   });
 
   byId('btnLoad').addEventListener('click', () => loadClass());
-  byId('btnCreate').addEventListener('click', createClass);
-
-  
+  // Changed: btnCreate opens modal (not direct create)
+  byId('btnCreate').addEventListener('click', openCreateClassModal);
 
   byId('btnAdd').addEventListener('click', addRow);
   byId('btnSave').addEventListener('click', () => { void saveChanges(); });
   byId('btnDiscard').addEventListener('click', discardChanges);
 
   byId('btnExport').addEventListener('click', () => {
-    const header = 'id,name,points\n';
-    const lines = rows
-      .map(r => `${r.id},${(r.name||'').replace(/,/g,' ')},${int(r.points||0)}`)
-      .join('\n');
-
+    const header = 'id,name,points\\n';
+    const lines = rows.map(r => \`\${r.id},\${(r.name||'').replace(/,/g,' ')},\${int(r.points||0)}\`).join('\\n');
     const blob = new Blob([header + lines], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `${currentClass || 'class'}-students.csv`;
+    a.href = url; a.download = \`\${currentClass || 'class'}-students.csv\`;
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
   });
-// === Class display name: edit + revert ===
-byId('btnEditClass').addEventListener('click', () => {
-  const current = classMeta.displayName || currentClass;
-  const next = prompt('Edit class display name:', current);
-  if (next == null) return; // cancelled
-  const trimmed = next.trim();
-  if (!trimmed) return;
 
-  classMeta.displayName = trimmed;
-  stagedClass = { ...(stagedClass || {}), displayName: trimmed };
+  // Class display name: edit + revert
+  byId('btnEditClass').addEventListener('click', () => {
+    const current = classMeta.displayName || currentClass;
+    const next = prompt('Edit class display name:', current);
+    if (next == null) return;
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    classMeta.displayName = trimmed;
+    stagedClass = { ...(stagedClass || {}), displayName: trimmed };
+    byId('classTitle').textContent = trimmed;
+    byId('btnRevertClass').disabled = false;
+    setDirty();
+  });
 
-  byId('classTitle').textContent = trimmed;
-  byId('btnRevertClass').disabled = false;
-  setDirty();
-});
+  byId('btnRevertClass').addEventListener('click', () => {
+    if (!classMetaBaseline) return;
+    classMeta = { ...classMetaBaseline };
+    stagedClass = null;
+    byId('classTitle').textContent = classMeta.displayName || currentClass;
+    updateDirtyButtons();
+    byId('btnRevertClass').disabled = true;
+  });
 
-byId('btnRevertClass').addEventListener('click', () => {
-  if (!classMetaBaseline) return;
-  classMeta = { ...classMetaBaseline };
-  stagedClass = null;
+  // Modal buttons
+  byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
+  byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeCreateClassModal(); });
 
-  byId('classTitle').textContent = classMeta.displayName || currentClass;
-
-  updateDirtyButtons();
-byId('btnRevertClass').disabled = true;
-
-});
-byId('btnCreateClass').addEventListener('click', openCreateClassModal);
-byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
-byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
-
-// Optional: Esc closes modal
-document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeCreateClassModal(); });
-
-  // Bind import buttons
+  // Import buttons
   byId("btnImportDry").addEventListener("click", importDry);
   byId("btnImportCommit").addEventListener("click", importCommit);
 
-  // Don't overwrite a user-typed prefix
-byId('idPrefix').addEventListener('input', () => { idPrefixTouched = true; });
+  // Prefix typing & suggestion
+  byId('idPrefix').addEventListener('input', () => { idPrefixTouched = true; });
+  byId('className').addEventListener('input', () => {
+    if (idPrefixTouched) return;
+    const pick = guessPrefixFromClassName(byId('className').value.trim());
+    if (pick) byId('idPrefix').value = pick;
+  });
 
-// Suggest prefix while typing class name—only if user hasn't touched prefix
-byId('className').addEventListener('input', () => {
-  if (idPrefixTouched) return;
-  const pick = guessPrefixFromClassName(byId('className').value.trim());
-  if (pick) byId('idPrefix').value = pick;
-});
-
-
-  // === Keyboard shortcuts: Undo/Redo ===
+  // Keyboard shortcuts: Undo/Redo
   document.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
     if (!mod) return;
-
-    // Allow Z even inside inputs; ignore other keys while typing
     if (['TEXTAREA','INPUT'].includes((e.target.tagName || '').toUpperCase()) &&
         e.target.type !== 'checkbox' &&
-        e.key.toLowerCase() !== 'z') {
-      return;
-    }
-
-    if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
-      e.preventDefault(); undo();
-    } else if ((e.key.toLowerCase() === 'z') && e.shiftKey) {
-      e.preventDefault(); redo();
-    }
+        e.key.toLowerCase() !== 'z') { return; }
+    if (e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((e.key.toLowerCase() === 'z') && e.shiftKey) { e.preventDefault(); redo(); }
   });
 
   // Observe auth state
@@ -1055,7 +877,6 @@ byId('className').addEventListener('input', () => {
     startClassesListener();
     if(user){ log('Auth state: signed in'); } else { log('Auth state: signed out'); }
   });
-
 </script>
 </body>
 </html>
