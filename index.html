@@ -433,7 +433,7 @@ const batch = writeBatch(db);
     }
   }
 
-  function discardChanges(){ loadClass({ live:!!unsubscribe }); }
+  function discardChanges(){ loadClass(); }
 
   // ===== CSV Import (Step 4) =====
   function parseFileToNames(text){
@@ -520,14 +520,9 @@ const batch = writeBatch(db);
     catch(e){ log('Sign-out error:', e.code || e.message); }
   });
 
-  byId('btnLoad').addEventListener('click', () => loadClass({ live:false }));
+  byId('btnLoad').addEventListener('click', () => loadClass());
 
-  let liveMode = false;
-  byId('btnListen').addEventListener('click', () => {
-    liveMode = !liveMode;
-    byId('btnListen').textContent = `Live Listen: ${liveMode ? 'On' : 'Off'}`;
-    loadClass({ live: liveMode });
-  });
+  
 
   byId('btnAdd').addEventListener('click', addRow);
   byId('btnSave').addEventListener('click', () => { void saveChanges(); });
