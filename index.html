@@ -22,7 +22,20 @@ input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;back
 .btn.primary{border-color:var(--accent)}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.log{height:160px;background:#000;color:#9efca0;border-radius:10px;border:1px solid var(--border);padding:10px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace,;font-size:8px}
+.log{
+  height:160px;
+  background:#000;
+  color:#9efca0;
+  border-radius:10px;
+  border:1px solid var(--border);
+  padding:10px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  white-space:pre-wrap;     /* wrap long lines */
+  word-break:break-word;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:11px;           /* tweak to taste */
+}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
 th{position:sticky;top:0;background:var(--panel);color:var(--muted);text-align:left}
@@ -64,9 +77,13 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
 
 <div class="toolbar" style="margin-top:10px">
-<button id=\"btnLoad\" class=\"btn primary\">Load Class<\/button>
-<button id=\"btnCreate\" class=\"btn\">Create Class<\/button>
-<button id=\"btnExport\" class=\"btn\">Export CSV<\/button>
+<!-- REPLACE the entire toolbar that sits under Class Name / Prefix with this -->
+<div class="toolbar" style="margin-top:10px">
+  <button id="btnLoad" class="btn primary">Load Class</button>
+  <button id="btnCreate" class="btn">Create Class</button>
+  <button id="btnExport" class="btn">Export CSV</button>
+</div>
+
 </div>
 
 
@@ -410,16 +427,22 @@ function revertRow(idx){
 
   const processSnap = (snap) => {
     rows = [];
+serverBaseline = new Map();  // keep fresh baseline each snapshot
+
 snap.forEach(d => {
   const data = d.data();
-  rows.push({
+  const row = {
     id: d.id,
     name: data.name || "",
     points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
     daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
-  });
+  };
+  rows.push(row);
+  serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
 });
+
 renderTable();
+
 
 
     // Autofill ID prefix if user hasn't typed one yet
@@ -514,17 +537,16 @@ const batch = writeBatch(db);
   function discardChanges(){ loadClass(); }
 
   // ===== CSV Import (Step 4) =====
-  function parseCSV(text){
-  const normalized = (text || '').replace(/
-?/g, '
-');
-  const lines = normalized.split('
-').map(l => l.trim()).filter(Boolean);
+function parseCSV(text){
+  const normalized = (text || '').replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) return [];
+
   const first = lines[0];
   const headerish = /id|name|points/i.test(first) && first.includes(',');
   const rows = headerish ? lines.slice(1) : lines;
   const headers = headerish ? first.split(',').map(h=>h.trim().toLowerCase()) : [];
+
   return rows.map(l => {
     const cols = l.split(',');
     const pick = (key, fallbackIndex) => {
@@ -534,12 +556,13 @@ const batch = writeBatch(db);
       }
       return (cols[fallbackIndex] || '').trim();
     };
-    const name = headerish ? pick('name', 0) : pick('', 0);
-    const id = headerish ? pick('id', 2) : '';
+    const name   = headerish ? pick('name',   0) : pick('', 0);
+    const id     = headerish ? pick('id',     2) : '';
     const points = headerish ? pick('points', 1) : pick('', 1);
     return { id, name, points };
   }).filter(r => r.name || r.id);
 }
+
 
 function parseFileToNames(text){
     const normalized = (text || '').replace(/\r\n?/g, '\n');
