@@ -187,7 +187,44 @@
 
   function toggleDelete(idx){ const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function adjustPoints(idx,delta){ const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
-  function markEdit(idx,patch){ const r=rows[idx]; if(r._state==="del") return; const oldId=r.id; Object.assign(r,patch); if(patch.id && patch.id!==oldId){ staged.del.set(oldId,true); staged.add.set(r.id,{ id:r.id, name:r.name||"", points:int(r.points||0) }); r._state="edit"; } else { if(patch.points!==undefined) patch.points=int(patch.points); staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), ...patch }); if(r._state!=="add") r._state="edit"; } setDirty(); renderTable(); }
+  function markEdit(idx,patch){
+    const r = rows[idx];
+    if(r._state === "del") return;
+    const prevId = r.id;
+
+    // Apply patch to in-memory row
+    Object.assign(r, patch);
+    if(patch.points !== undefined) r.points = int(patch.points);
+
+    // If ID changed, treat as rename: delete old, add new
+    if (patch.id && patch.id !== prevId) {
+      staged.del.set(prevId, true);
+      staged.add.set(r.id, { id: r.id, name: r.name || "", points: int(r.points || 0) });
+      r._state = "edit"; // visually mark
+    } else {
+      // If this row was newly added, ensure edits update staged.add (not staged.edit)
+      if (staged.add.has(r.id) || r._state === "add") {
+        const cur = staged.add.get(r.id) || { id: r.id, name: "", points: 0 };
+        const next = { ...cur };
+        if (patch.name !== undefined) next.name = r.name || "";
+        if (patch.points !== undefined) next.points = int(r.points || 0);
+        // keep id in sync
+        next.id = r.id;
+        staged.add.set(r.id, next);
+      } else {
+        // Existing row: stage partial edits
+        const cur = staged.edit.get(r.id) || {};
+        const next = { ...cur };
+        if (patch.name !== undefined) next.name = r.name;
+        if (patch.points !== undefined) next.points = int(r.points || 0);
+        if (patch.id !== undefined) next.id = r.id;
+        staged.edit.set(r.id, next);
+        if (r._state !== "add") r._state = "edit";
+      }
+    }
+    setDirty();
+    renderTable();
+  }); r._state="edit"; } else { if(patch.points!==undefined) patch.points=int(patch.points); staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), ...patch }); if(r._state!=="add") r._state="edit"; } setDirty(); renderTable(); }
   function addRow(){ const id=`${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`; const r={ id, name:"", points:0, _state:"add" }; rows.push(r); staged.add.set(id,{ id, name:"", points:0 }); setDirty(); renderTable(); }
 
   async function loadClass({live=false}={}){
@@ -215,6 +252,43 @@
 
   async function saveChanges(){
     if(!currentClass){ alert("Load a class first."); return; }
+    if(!isSignedIn()){ alert("Sign in to save changes."); return; }
+    try{
+      const uid = auth.currentUser && auth.currentUser.uid;
+      log(`Saving as uid=${uid || 'unknown'}`);
+      const batch = writeBatch(db);
+      staged.del.forEach((_,id)=>batch.delete(doc(db,"classes",currentClass,"students",id)));
+      staged.add.forEach((data,id)=>batch.set(
+        doc(db,"classes",currentClass,"students",id),
+        {
+          id: data.id,
+          name: data.name || "",
+          points: { daily: 0, total: int(data.points || 0) }
+        },
+        { merge: true }
+      ));
+      staged.edit.forEach((patch,id)=>{
+        if(!staged.add.has(id)){
+          const updateData={};
+          if(patch.name!==undefined) updateData.name=patch.name;
+          if(patch.points!==undefined) updateData["points.total"] = int(patch.points);
+          batch.set(doc(db,"classes",currentClass,"students",id),updateData,{ merge:true });
+        }
+      });
+      const total = staged.del.size + staged.add.size + staged.edit.size; if(!total){ log("No changes to save."); return; }
+      await batch.commit();
+      log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size}`);
+      rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
+      staged = { add:new Map(), edit:new Map(), del:new Map() };
+      byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; renderTable();
+    } catch(e){
+      const code = e && e.code ? e.code : 'unknown';
+      const msg = e && e.message ? e.message : String(e);
+      log(`Save failed: ${code} - ${msg}`);
+      alert(`Save failed: ${code}. Check Firestore security rules and auth.`);
+      throw e; // keep the original promise rejection for console visibility
+    }
+  }
     if(!isSignedIn()){ alert("Sign in to save changes."); return; }
     const batch = writeBatch(db);
     staged.del.forEach((_,id)=>batch.delete(doc(db,"classes",currentClass,"students",id)));
