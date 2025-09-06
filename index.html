@@ -543,7 +543,7 @@ const batch = writeBatch(db);
   if (!staged.add.has(id)) {
     const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
     const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
-    cconst classCount = stagedClass ? 1 : 0;
+    const classCount = stagedClass ? 1 : 0;
 const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
 if (!total) { log("No changes to save."); return; }
     const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
