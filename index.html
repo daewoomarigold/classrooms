@@ -1,126 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Classroom Admin — Ground‑Up</title>
-  <style>
-    :root{--bg:#0b1020;--panel:#0f172a;--panel2:#111827;--muted:#9aa6b2;--text:#e7e9ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--accent:#60a5fa;--border:#1e293b}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-    header{position:sticky;top:0;z-index:3;background:#0a0f1f;border-bottom:1px solid var(--border);padding:14px 16px}
-    h1{margin:0;font-size:18px}
-    main{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px}
-    @media (max-width:980px){main{grid-template-columns:1fr}}
-    section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
-    label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
-    input,select,button{font:inherit}
-    input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text)}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer}
-    .btn.primary{border-color:var(--accent)}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .log{height:160px;background:#000;color:#9efca0;border-radius:10px;border:1px solid var(--border);padding:10px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace}
-    table{width:100%;border-collapse:collapse;font-size:13px}
-    th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
-    th{position:sticky;top:0;background:var(--panel);color:var(--muted);text-align:left}
-    tr.add td{background:rgba(34,197,94,.06)}
-    tr.edit td{background:rgba(59,130,246,.06)}
-    tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
-    .chip{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);color:var(--muted)}
-    .status{display:flex;align-items:center;gap:8px}
-    .status .dot{width:8px;height:8px;border-radius:999px;background:#999}
-    .status.signedout .dot{background:#666}
-    .status.signedin .dot{background:#10b981}
-  </style>
+section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+input,select,button{font:inherit}
+input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer}
+.btn.primary{border-color:var(--accent)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.log{height:160px;background:#000;color:#9efca0;border-radius:10px;border:1px solid var(--border);padding:10px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
+th{position:sticky;top:0;background:var(--panel);color:var(--muted);text-align:left}
+tr.add td{background:rgba(34,197,94,.06)}
+tr.edit td{background:rgba(59,130,246,.06)}
+tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
+.chip{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);color:var(--muted)}
+.status{display:flex;align-items:center;gap:8px}
+.status .dot{width:8px;height:8px;border-radius:999px;background:#999}
+.status.signedout .dot{background:#666}
+.status.signedin .dot{background:#10b981}
+</style>
 </head>
 <body>
-  <header>
-    <h1>📋 Classroom Admin</h1>
-  </header>
+<header>
+<h1>📋 Classroom Admin</h1>
+</header>
 
-  <main>
-    <section>
-      <div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
-      <div class="toolbar" style="margin:10px 0 6px">
-        <button class="btn" id="btnSignIn">Sign in with Google</button>
-        <button class="btn" id="btnSignOut" disabled>Sign out</button>
-      </div>
 
-      <label>Available Classes</label>
-      <div class="toolbar">
-        <select id="classSelect" style="min-width:220px"></select>
-        <button class="btn" id="btnRefreshClasses">↻ Refresh</button>
-      </div>
+<main>
+<section>
+<div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
+<div class="toolbar" style="margin:10px 0 6px">
+<button class="btn" id="btnSignIn">Sign in with Google</button>
+<button class="btn" id="btnSignOut" disabled>Sign out</button>
+</div>
 
-      <div class="row" style="margin-top:10px">
-        <div>
-          <label>Class Name</label>
-          <input id="className" type="text" placeholder="Grade5" />
-        </div>
-        <div>
-          <label>Student ID Prefix</label>
-          <input id="idPrefix" type="text" placeholder="G5_" />
-        </div>
-      </div>
 
-      <div class="toolbar" style="margin-top:10px">
-        <button id="btnLoad" class="btn primary">Load Class</button>
-        <button id="btnListen" class="btn">Live Listen: Off</button>
-        <button id="btnExport" class="btn">Export CSV</button>
-      </div>
+<div class="row" style="margin-top:10px">
+<div>
+<label>Class Name</label>
+<input id="className" type="text" placeholder="Grade5" />
+</div>
+<div>
+<label>Student ID Prefix</label>
+<input id="idPrefix" type="text" placeholder="G5_" />
+</div>
+</div>
 
-      <div class="toolbar" style="margin:10px 0">
-        <span class="chip">Inline edit</span>
-        <span class="chip">Add/Delete</span>
-        <span class="chip">Batch save</span>
-      </div>
 
-      <div class="toolbar">
-        <button id="btnAdd" class="btn">+ Add Student</button>
-        <button id="btnSave" class="btn primary" disabled>Save Changes</button>
-        <button id="btnDiscard" class="btn" disabled>Discard</button>
-      </div>
+<div class="toolbar" style="margin-top:10px">
+<button id="btnLoad" class="btn primary">Load Class</button>
+<button id="btnListen" class="btn">Live Listen: Off</button>
+<button id="btnExport" class="btn">Export CSV</button>
+</div>
 
-      <label style="margin-top:12px">Change Log</label>
-      <pre id="log" class="log"></pre>
 
-      <label style="margin-top:12px">CSV/TXT Import</label>
-      <div class="row">
-        <div><input id="file" type="file" accept=".csv,.txt" /></div>
-        <div>
-          <select id="importMode">
-            <option value="append">Append</option>
-            <option value="replace">Replace</option>
-          </select>
-        </div>
-      </div>
-      <div class="toolbar" style="margin-top:8px">
-        <button id="btnImportDry" class="btn">Dry Run</button>
-        <button id="btnImportCommit" class="btn" disabled>Commit</button>
-      </div>
-    </section>
+<div class="toolbar" style="margin:10px 0">
+<span class="chip">Inline edit</span>
+<span class="chip">Add/Delete</span>
+<span class="chip">Batch save</span>
+</div>
 
-    <section>
-      <div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
-        <table id="table">
-          <thead>
-            <tr>
-              <th style="width:60px">#</th>
-              <th style="width:200px">Student ID</th>
-              <th>Name</th>
-              <th style="width:120px">Points (Total)</th>
-              <th style="width:160px">Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
 
+<div class="toolbar">
+<button id="btnAdd" class="btn">+ Add Student</button>
+<button id="btnSave" class="btn primary" disabled>Save Changes</button>
+<button id="btnDiscard" class="btn" disabled>Discard</button>
+</div>
+
+
+<label style="margin-top:12px">Change Log</label>
+<pre id="log" class="log"></pre>
+
+
+<label style="margin-top:12px">CSV/TXT Import</label>
+<div class="row">
+<div><input id="file" type="file" accept=".csv,.txt" /></div>
+<div>
+<select id="importMode">
+<option value="append">Append</option>
+<option value="replace">Replace</option>
+</select>
+</div>
+</div>
+<div class="toolbar" style="margin-top:8px">
+<button id="btnImportDry" class="btn">Dry Run</button>
+<button id="btnImportCommit" class="btn" disabled>Commit</button>
+</div>
+</section>
+
+
+<section>
+<div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
+<table id="table">
+<thead>
+<tr>
+<th style="width:60px">#</th>
+<th style="width:200px">Student ID</th>
+<th>Name</th>
+<th style="width:120px">Points (Total)</th>
+<th style="width:160px">Actions</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</section>
+</main>
+  
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -207,41 +196,41 @@
   function setDirty(){ byId("btnSave").disabled=false; byId("btnDiscard").disabled=false; }
   function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
 
-  function renderTable(){
-          tbl.innerHTML = "";
-          rows.forEach((r,i)=>{
-          const tr = document.createElement("tr");
-          if(r._state==="add") tr.classList.add("add");
-          if(r._state==="edit") tr.classList.add("edit");
-          if(r._state==="del") tr.classList.add("del");
-          tr.innerHTML = `
-          <td>${i+1}</td>
-          <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
-          <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
-          <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
-          <td>
-          <div class="toolbar">
-          <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
-          </div>
-          </td>`;
-          tbl.appendChild(tr);
-          const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
-          tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
-          idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
-          nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
-          ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
-          
-          
-          [idEl, nameEl, ptsEl].forEach(el => {
-          el.addEventListener("keydown", ev => {
-          if (ev.key === "Enter") {
-          ev.preventDefault();
-          ev.currentTarget.blur();
-          }
-          });
-          });
-          });
-          }
+  unction renderTable(){
+      tbl.innerHTML = "";
+      rows.forEach((r,i)=>{
+      const tr = document.createElement("tr");
+      if(r._state==="add") tr.classList.add("add");
+      if(r._state==="edit") tr.classList.add("edit");
+      if(r._state==="del") tr.classList.add("del");
+      tr.innerHTML = `
+      <td>${i+1}</td>
+      <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
+      <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
+      <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
+      <td>
+      <div class="toolbar">
+      <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
+      </div>
+      </td>`;
+      tbl.appendChild(tr);
+      const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
+      tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
+      idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
+      nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
+      ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
+      
+      
+      [idEl, nameEl, ptsEl].forEach(el => {
+      el.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") {
+      ev.preventDefault();
+      ev.currentTarget.blur();
+      }
+      });
+      });
+      });
+      }
 
   function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function markEdit(idx, patch) {
