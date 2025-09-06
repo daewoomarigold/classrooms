@@ -264,7 +264,6 @@
       renderTable();
       log(`Loaded ${rows.length} students for ${className}`);
     };
-});
     if(live){
       unsubscribe = onSnapshot(query(coll),processSnap,(err)=>log("students listen:", err.code||err.message));
     } else {
