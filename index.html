@@ -47,6 +47,12 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 .status .dot{width:8px;height:8px;border-radius:999px;background:#999}
 .status.signedout .dot{background:#666}
 .status.signedin .dot{background:#10b981}
+  /* simple modal */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:50}
+.modal.open{display:flex}
+.modal .dialog{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.modal h3{margin:0 0 8px;font-size:16px}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 </style>
 </head>
 <body>
@@ -145,6 +151,18 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <tbody></tbody>
 </table>
 </div>
+  <!-- Create Class Modal -->
+<div id="createClassModal" class="modal" aria-hidden="true">
+  <div class="dialog">
+    <h3>Create Class</h3>
+    <label>New class name</label>
+    <input id="newClassName" type="text" placeholder="e.g., Marigold Grade 1" />
+    <div class="actions">
+      <button class="btn" id="btnCreateCancel">Exit</button>
+      <button class="btn primary" id="btnCreateConfirm">Create</button>
+    </div>
+  </div>
+</div>
 </section>
 </main>
 
@@ -152,7 +170,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, writeBatch, collection, getDocs, getDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getDocs, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -601,6 +619,7 @@ if(!idPrefixTouched && !byId("idPrefix").value){
     }
   }
 
+  
   async function saveChanges(){
   if(!currentClass){ alert("Load a class first."); return; }
   if(!isSignedIn()){ alert("Sign in to save changes."); return; }
@@ -691,6 +710,8 @@ if(!idPrefixTouched && !byId("idPrefix").value){
   function discardChanges(){ loadClass(); }
 
   // ===== CSV Import (Step 4) =====
+
+  
 function parseCSV(text){
   const normalized = (text || '').replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
@@ -987,6 +1008,12 @@ byId('btnRevertClass').addEventListener('click', () => {
 byId('btnRevertClass').disabled = true;
 
 });
+byId('btnCreateClass').addEventListener('click', openCreateClassModal);
+byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
+byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
+
+// Optional: Esc closes modal
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeCreateClassModal(); });
 
   // Bind import buttons
   byId("btnImportDry").addEventListener("click", importDry);
