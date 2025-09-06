@@ -168,9 +168,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
   
 <script type="module">
+
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -602,8 +603,8 @@ if(!idPrefixTouched && !byId("idPrefix").value){
     log("students listen:", err.code || err.message)
   );
 }
-  async function createClass(nameArg){
-    const className = (nameArg ? String(nameArg) : byId('className').value).trim();
+  async function createClass(){
+    const className = byId('className').value.trim();
     if(!className){ alert('Enter a class name'); return; }
     const prefix = byId('idPrefix').value.trim();
     if(!prefix){ alert('Enter a Student ID Prefix (e.g., G2_)'); return; }
@@ -909,80 +910,8 @@ function startClassesListener(){
   );
 }
 
-  
-function openCreateClassModal(){
-  const modal = byId('createClassModal');
-  const input = byId('newClassName');
-  if (!modal) return;
-  modal.classList.add('open');
-  modal.setAttribute('aria-hidden','false');
-  // Prefill suggestion from selected option or input
-  const sel = byId('className');
-  const pick = (sel && sel.value) ? sel.value : (classMeta.displayName || currentClass || '');
-  if (pick && input) input.value = pick;
-  setTimeout(()=>{ if (input) input.focus(); }, 0);
-}
-
-function closeCreateClassModal(){
-  const modal = byId('createClassModal');
-  if (!modal) return;
-  modal.classList.remove('open');
-  modal.setAttribute('aria-hidden','true');
-}
-
-async function createClassFromModal(){
-  const nameEl = byId('newClassName');
-  const sel = byId('className');
-  const prefixEl = byId('idPrefix');
-  const newName = (nameEl && nameEl.value || '').trim();
-  if (!newName) { alert('Please enter a class name.'); return; }
-
-  // Set selection and suggest prefix if empty
-  if (sel) {
-  // If option doesn't exist yet, add it so .value will stick
-  let opt = Array.from(sel.options).find(o => o.value === newName);
-  if (!opt) {
-    opt = document.createElement('option');
-    opt.value = newName; opt.textContent = newName;
-    sel.appendChild(opt);
-  }
-  sel.value = newName;
-}
-  if (prefixEl && !prefixEl.value.trim()){
-    const pick = guessPrefixFromClassName(newName);
-    if (pick) prefixEl.value = pick;
-  }
-
-  try {
-    await createClass(newName); // pass explicit name so we don't depend on <select> value
-    closeCreateClassModal();
-  } catch(e){
-    // createClass itself logs and alerts; keep modal open for correction
-    console.error(e);
-  }
-}
-
-  await bat.commit();
-
-  // Delete class document
-  const classRef = doc(db, 'classes', classId);
-  const finalBatch = writeBatch(db);
-  finalBatch.delete(classRef);
-  await finalBatch.commit();
-
-  log(`Class "${classId}" deleted.`);
-
-  // Reset UI selection/state
-  const sel = byId('className');
-  if (sel && sel.value === classId) {
-    sel.selectedIndex = 0; // back to placeholder
-  }
-  currentClass = "";
-  resetState();
-}
-
   // ===== Button wiring =====
-function updateAuthUI(user){
+  function updateAuthUI(user){
     const status = byId('authStatus');
     const textEl = byId('authText');
     const signInBtn = byId('btnSignIn');
@@ -1032,8 +961,11 @@ byId('btnRenameClass').addEventListener('click', async () => {
   });
 
   byId('btnLoad').addEventListener('click', () => loadClass());
-  byId('btnCreate').addEventListener('click', openCreateClassModal);
-byId('btnAdd').addEventListener('click', addRow);
+  byId('btnCreate').addEventListener('click', createClass);
+
+  
+
+  byId('btnAdd').addEventListener('click', addRow);
   byId('btnSave').addEventListener('click', () => { void saveChanges(); });
   byId('btnDiscard').addEventListener('click', discardChanges);
 
@@ -1097,8 +1029,10 @@ byId('btnDeleteClass').addEventListener('click', async () => {
     alert("Delete failed. See Change Log for details.");
   }
 });
+byId('btnRevertClass').disabled = true;
 
-byId('btnCreate').addEventListener('click', openCreateClassModal);
+});
+byId('btnCreateClass').addEventListener('click', openCreateClassModal);
 byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
 byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
 
@@ -1145,6 +1079,7 @@ byId('className').addEventListener('input', () => {
     startClassesListener();
     if(user){ log('Auth state: signed in'); } else { log('Auth state: signed out'); }
   });
+
 
 </script>
 </body>
