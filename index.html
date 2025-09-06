@@ -1004,9 +1004,9 @@ byId('btnDeleteClass').addEventListener('click', async () => {
   try {
     await deleteClassDoc(currentClass);
   } catch(e){
-  log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) || e}`);
-  alert("Delete failed. See Change Log for details.");
-}
+    log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) or e}`);
+    alert("Delete failed. See Change Log for details.");
+  }
 });
 
   
@@ -1109,10 +1109,54 @@ byId('btnAdd').addEventListener('click', addRow);
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
   });
-// === Class deletion ===
-byId('btnRevertClass').disabled = true;
 
+// === Class deletion ===
+async function deleteClassDoc(classId){
+  if (!classId) return;
+  const base = ['classes', classId, 'students'];
+  const batchSize = 400;
+
+  // delete student docs
+  const studentsSnap = await getDocs(collection(db, ...base));
+  let bat = writeBatch(db);
+  let ops = 0;
+  studentsSnap.forEach(d => {
+    bat.delete(doc(db, ...base, d.id));
+    ops++;
+    if (ops % batchSize === 0) { bat.commit(); bat = writeBatch(db); }
+  });
+  await bat.commit();
+
+  // delete class doc
+  const classRef = doc(db, 'classes', classId);
+  const finalBatch = writeBatch(db);
+  finalBatch.delete(classRef);
+  await finalBatch.commit();
+
+  log(`Class "${classId}" deleted.`);
+
+  // reset UI
+  const sel = byId('className');
+  if (sel && sel.value === classId) {
+    sel.selectedIndex = 0;
+  }
+  currentClass = "";
+  resetState();
+}
+
+// confirm & trigger
+byId('btnDeleteClass').addEventListener('click', async () => {
+  if (!currentClass) { alert("Load a class first."); return; }
+  const ok = confirm(`Are you sure you want to DELETE the class "${currentClass}" and all its students? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await deleteClassDoc(currentClass);
+  } catch(e){
+    log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) || e}`);
+    alert("Delete failed. See Change Log for details.");
+  }
 });
+
 byId('btnCreate').addEventListener('click', openCreateClassModal);
 byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
 byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
