@@ -118,6 +118,16 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
 
 <section>
+  <!-- Class header (display name + edit/revert) -->
+<div id="classHeader" class="toolbar" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div style="display:flex;gap:10px;align-items:center">
+    <h2 id="classTitle" style="margin:0;font-size:16px;color:var(--text)">Class: —</h2>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" id="btnEditClass" title="Edit class display name">✏️</button>
+    <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
+  </div>
+</div>
 <div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
 <table id="table">
 <thead>
@@ -165,6 +175,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   let unsubscribe = null;
   let rows = [];
   let staged = { add:new Map(), edit:new Map(), del:new Map() };
+  let classMeta = { displayName: "", idPrefix: "" };
+let classMetaBaseline = null;   // latest Firestore snapshot
+let stagedClass = null;         // UI-only edits, saved on Save Changes
+let unsubClassMeta = null;      // onSnapshot cleanup for class doc
   // Server baseline of latest Firestore snapshot
 let serverBaseline = new Map();
 
@@ -252,7 +266,14 @@ function guessPrefixFromClassName(name){
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
 
   function setDirty(){ byId("btnSave").disabled=false; byId("btnDiscard").disabled=false; }
-  function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
+  function resetState(){
+  rows=[];
+  staged={ add:new Map(), edit:new Map(), del:new Map() };
+  stagedClass = null;
+  renderTable();
+  byId("btnSave").disabled=true; byId("btnDiscard").disabled=true;
+  log("--- state cleared ---");
+}
 
   function renderTable(){
     tbl.innerHTML = "";
@@ -416,56 +437,69 @@ function revertRow(idx){
 
   async function loadClass(){
   const className = byId("className").value.trim();
-  if (!className) { alert("Enter a class name"); return; }
+  if(!className){ alert("Enter a class name"); return; }
   currentClass = className;
   resetState();
 
-  // ensure we don't stack multiple listeners
+  // Clean up previous listeners
   if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  if (unsubClassMeta) { unsubClassMeta(); unsubClassMeta = null; }
 
+  // --- Class metadata snapshot (displayName, idPrefix) ---
+  const classRef = doc(db, "classes", className);
+  unsubClassMeta = onSnapshot(classRef, (snap) => {
+    const data = snap.data() || {};
+    classMetaBaseline = {
+      displayName: data.displayName || className,
+      idPrefix: data.idPrefix || ""
+    };
+
+    // If no staged class edit, mirror baseline into working copy
+    if (!stagedClass) classMeta = { ...classMetaBaseline };
+
+    // Show the title
+    byId("classTitle").textContent = classMeta.displayName || className;
+
+    // Autofill prefix from doc if teacher hasn't typed one
+    if (!idPrefixTouched && data.idPrefix) {
+      byId("idPrefix").value = data.idPrefix;
+    }
+  }, (err) => log("class meta listen:", err.code || err.message));
+
+  // --- Students snapshot (unchanged from your current version) ---
   const coll = collection(db, "classes", className, "students");
-
   const processSnap = (snap) => {
     rows = [];
-serverBaseline = new Map();  // keep fresh baseline each snapshot
+    serverBaseline = new Map();
+    snap.forEach(d => {
+      const data = d.data();
+      const row = {
+        id: d.id,
+        name: data.name || "",
+        points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+        daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
+      };
+      rows.push(row);
+      serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
+    });
+    renderTable();
 
-snap.forEach(d => {
-  const data = d.data();
-  const row = {
-    id: d.id,
-    name: data.name || "",
-    points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
-    daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
-  };
-  rows.push(row);
-  serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
-});
-
-renderTable();
-
-
-
-    // Autofill ID prefix if user hasn't typed one yet
-    if (typeof idPrefixTouched !== "undefined" && !idPrefixTouched) {
-      const byRows = (typeof guessPrefixFromRows === "function") ? guessPrefixFromRows(rows) : "";
-      const byName = (typeof guessPrefixFromClassName === "function") ? guessPrefixFromClassName(className) : "";
-      const pick   = byRows || byName;
+    // (Optional) prefix guess from rows if user hasn't touched it and doc didn't provide
+    if(!idPrefixTouched && !byId("idPrefix").value){
+      const byRows = guessPrefixFromRows(rows) || "";
+      const byName = guessPrefixFromClassName(className) || "";
+      const pick = byRows || byName;
       if (pick) byId("idPrefix").value = pick;
     }
 
     log(`Loaded ${rows.length} students for ${className}`);
-    history = [];
-    future  = [];
+    history = []; future = [];
   };
 
-  // Always live listen
   unsubscribe = onSnapshot(query(coll), processSnap, (err) =>
     log("students listen:", err.code || err.message)
   );
 }
-
-  
-
   async function createClass(){
     const className = byId('className').value.trim();
     if(!className){ alert('Enter a class name'); return; }
@@ -517,6 +551,10 @@ const batch = writeBatch(db);
   }
 });
       const total = staged.del.size + staged.add.size + staged.edit.size; if(!total){ log("No changes to save."); return; }
+      // Save class metadata if staged
+if (stagedClass) {
+  batch.set(doc(db, "classes", currentClass), stagedClass, { merge: true });
+}
       await batch.commit();
       log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size}`);
       rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
@@ -525,6 +563,8 @@ const batch = writeBatch(db);
       // reset undo/redo history after successful save
       history = [];
       future  = [];
+      stagedClass = null;
+byId('btnRevertClass').disabled = true;
     } catch(e){
       const code = e && e.code ? e.code : 'unknown';
       const msg = e && e.message ? e.message : String(e);
@@ -755,6 +795,34 @@ function parseRoster(text){
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
   });
+// === Class display name: edit + revert ===
+byId('btnEditClass').addEventListener('click', () => {
+  const current = classMeta.displayName || currentClass;
+  const next = prompt('Edit class display name:', current);
+  if (next == null) return; // cancelled
+  const trimmed = next.trim();
+  if (!trimmed) return;
+
+  classMeta.displayName = trimmed;
+  stagedClass = { ...(stagedClass || {}), displayName: trimmed };
+
+  byId('classTitle').textContent = trimmed;
+  byId('btnRevertClass').disabled = false;
+  setDirty();
+});
+
+byId('btnRevertClass').addEventListener('click', () => {
+  if (!classMetaBaseline) return;
+  classMeta = { ...classMetaBaseline };
+  stagedClass = null;
+
+  byId('classTitle').textContent = classMeta.displayName || currentClass;
+
+  const dirty = staged.add.size || staged.edit.size || staged.del.size || stagedClass;
+  byId('btnSave').disabled    = !dirty;
+  byId('btnDiscard').disabled = !dirty;
+  byId('btnRevertClass').disabled = true;
+});
 
   // Bind import buttons
   byId("btnImportDry").addEventListener("click", importDry);
