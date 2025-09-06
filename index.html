@@ -244,8 +244,6 @@
           }
 
   function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
-  function adjustPoints(idx,delta){ pushHistory('adjustPoints'); const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
-
   function markEdit(idx, patch) {
     pushHistory('markEdit');
     const r = rows[idx];
