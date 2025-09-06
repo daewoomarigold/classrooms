@@ -235,11 +235,7 @@ function guessPrefixFromClassName(name){
       del: new Map(snapshot.staged.del),
     };
     renderTable();
-    const dirty = staged.add.size || staged.edit.size || staged.del.size || !!stagedClass;
-byId("btnSave").disabled    = !dirty;
-byId("btnDiscard").disabled = !dirty;
-  }
-
+updateDirtyButtons();
   function pushHistory(label) {
     history.push({ label, snapshot: deepCloneState() });
     future = [];
@@ -327,10 +323,12 @@ if (revertBtn) revertBtn.addEventListener("click",()=>revertRow(i));
     });
     }
 function updateDirtyButtons(){
-  const dirty = staged.add.size || staged.edit.size || staged.del.size;
+  // unified dirty-state: includes class-level staging
+  const dirty = (staged.add.size || staged.edit.size || staged.del.size || !!stagedClass);
   byId("btnSave").disabled = !dirty;
   byId("btnDiscard").disabled = !dirty;
 }
+
 
 function revertRow(idx){
   pushHistory('revertRow');
@@ -488,8 +486,10 @@ function revertRow(idx){
     });
     renderTable();
 
-    // (Optional) prefix guess from rows if user hasn't touched it and doc didn't provide
-    if(!idPrefixTouched && !byId("idPrefix").value){
+updateDirtyButtons();
+
+// (Optional) prefix guess from rows if teacher hasn't touched it and doc didn't provide
+if(!idPrefixTouched && !byId("idPrefix").value){
       const byRows = guessPrefixFromRows(rows) || "";
       const byName = guessPrefixFromClassName(className) || "";
       const pick = byRows || byName;
@@ -543,10 +543,10 @@ const batch = writeBatch(db);
   if (!staged.add.has(id)) {
     const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
     const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
-    const classCount = stagedClass ? 1 : 0;
-const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
-if (!total) { log("No changes to save."); return; }
     const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
+const classCount = stagedClass ? 1 : 0;
+const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
+if(!total){ log("No changes to save."); return; }
 
     // Always write a complete, rules-compliant fragment
     batch.set(
@@ -828,10 +828,9 @@ byId('btnRevertClass').addEventListener('click', () => {
 
   byId('classTitle').textContent = classMeta.displayName || currentClass;
 
-  const dirty = staged.add.size || staged.edit.size || staged.del.size || stagedClass;
-  byId('btnSave').disabled    = !dirty;
-  byId('btnDiscard').disabled = !dirty;
-  byId('btnRevertClass').disabled = true;
+  updateDirtyButtons();
+byId('btnRevertClass').disabled = true;
+
 });
 
   // Bind import buttons
