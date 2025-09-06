@@ -996,52 +996,8 @@ async function deleteClassDoc(classId){
   resetState();
 }
 
-// Wire delete button with confirmation
-byId('btnDeleteClass').addEventListener('click', async () => {
-  if (!currentClass) { alert("Load a class first."); return; }
-  const ok = confirm(`Are you sure you want to DELETE the class "${currentClass}" and all its students? This cannot be undone.`);
-  if (!ok) return;
-  try {
-    await deleteClassDoc(currentClass);
-  } catch(e){
-  log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) || e}`);
-  alert("Delete failed. See Change Log for details.");
-}
-
-
-  
-async function deleteClass(){
-  if (!currentClass) { alert("Load a class first."); return; }
-  const ok = confirm(`Are you sure you want to delete class "${currentClass}"? This cannot be undone.`);
-  if (!ok) return;
-
-  try {
-    const studentsSnap = await getDocs(collection(db, "classes", currentClass, "students"));
-    let batch = writeBatch(db);
-    let ops = 0;
-    for (const d of studentsSnap.docs) {
-      batch.delete(doc(db, "classes", currentClass, "students", d.id));
-      if (++ops % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
-    }
-    await batch.commit();
-
-    await deleteDoc(doc(db, "classes", currentClass));
-
-    log(`Class "${currentClass}" deleted.`);
-    currentClass = "";
-    resetState();
-    startClassesListener();
-    byId("classTitle").textContent = "Class: —";
-    byId("className").selectedIndex = 0;
-  } catch(e){
-    log(`Delete failed: ${e.code || 'error'} - ${e.message || e}`);
-    alert("Delete failed. See Change Log for details.");
-  }
-}
-
   // ===== Button wiring =====
-byId('btnDeleteClass').addEventListener('click', deleteClass);
-  function updateAuthUI(user){
+function updateAuthUI(user){
     const status = byId('authStatus');
     const textEl = byId('authText');
     const signInBtn = byId('btnSignIn');
