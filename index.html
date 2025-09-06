@@ -67,7 +67,9 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <div class="row" style="margin-top:10px">
 <div>
 <label>Class Name</label>
-<input id="className" type="text" placeholder="Grade5" />
+<select id="className">
+  <option value="" disabled selected>— Select a class —</option>
+</select>
 </div>
 <div>
 <label>Student ID Prefix</label>
@@ -177,6 +179,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   let rows = [];
   let staged = { add:new Map(), edit:new Map(), del:new Map() };
   let classMeta = { displayName: "", idPrefix: "" };
+  let unsubClasses = null; // listener for /classes list
 let classMetaBaseline = null;   // latest Firestore snapshot
 let stagedClass = null;         // UI-only edits, saved on Save Changes
 let unsubClassMeta = null;      // onSnapshot cleanup for class doc
@@ -847,6 +850,43 @@ function parseRoster(text){
     byId("btnImportCommit").disabled=true;
     loadClass();
   }
+function startClassesListener(){
+  // clean up previous listener
+  if (unsubClasses) { unsubClasses(); unsubClasses = null; }
+
+  const classesCol = collection(db, "classes");
+  unsubClasses = onSnapshot(
+    classesCol,
+    (snap) => {
+      const items = [];
+      snap.forEach(docSnap => {
+        const data = docSnap.data() || {};
+        const id = docSnap.id;
+        const label = data.displayName || id;
+        items.push({ id, label });
+      });
+
+      // sort nicely (handles "Grade 2" before "Grade 10")
+      items.sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" })
+      );
+
+      const sel = byId("className");
+      const prev = sel.value;
+      sel.innerHTML =
+        '<option value="" disabled>— Select a class —</option>' +
+        items.map(it => `<option value="${it.id}">${escapeHtml(it.label)}</option>`).join("");
+
+      // keep current selection if it still exists
+      if (items.some(it => it.id === prev)) {
+        sel.value = prev;
+      } else {
+        sel.selectedIndex = 0; // show placeholder
+      }
+    },
+    (err) => log("classes list listen:", err.code || err.message)
+  );
+}
 
   // ===== Button wiring =====
   function updateAuthUI(user){
@@ -985,6 +1025,7 @@ byId('className').addEventListener('input', () => {
   // Observe auth state
   onAuthStateChanged(auth, (user) => {
     updateAuthUI(user);
+    startClassesListener();
     if(user){ log('Auth state: signed in'); } else { log('Auth state: signed out'); }
   });
 
