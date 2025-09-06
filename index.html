@@ -147,6 +147,9 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   let unsubscribe = null;
   let rows = [];
   let staged = { add:new Map(), edit:new Map(), del:new Map() };
+  // Server baseline of latest Firestore snapshot
+let serverBaseline = new Map();
+
 
   // === Undo/Redo state ===
   let history = [];
@@ -246,13 +249,25 @@ function guessPrefixFromClassName(name){
     <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
     <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
     <td>
-    <div class="toolbar">
-    <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
-    </div>
-    </td>`;
+  <div class="toolbar">
+    <button class="btn btnDel" title="Delete / Undo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M3 6h18M8 6v-.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V6m-8 0v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="btn btnRevert" title="Revert to Firestore">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M9 10H5V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 10a7 7 0 1 0 2.05-4.95L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</td>`;
     tbl.appendChild(tr);
     const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
     tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
+const revertBtn = tr.querySelector(".btnRevert");
+if (revertBtn) revertBtn.addEventListener("click",()=>revertRow(i));
     idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
     nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
     ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
@@ -268,6 +283,44 @@ function guessPrefixFromClassName(name){
     });
     });
     }
+function updateDirtyButtons(){
+  const dirty = staged.add.size || staged.edit.size || staged.del.size;
+  byId("btnSave").disabled = !dirty;
+  byId("btnDiscard").disabled = !dirty;
+}
+
+function revertRow(idx){
+  pushHistory('revertRow');
+  const r = rows[idx];
+  const baseId = r._baselineId || r.id;
+  const base = serverBaseline.get(baseId);
+
+  // If this row doesn't exist on the server (local add), remove it
+  if (!base) {
+    staged.add.delete(r.id);
+    staged.edit.delete(r.id);
+    staged.del.delete(r.id);
+    rows.splice(idx, 1);
+    updateDirtyButtons();
+    renderTable();
+    return;
+  }
+
+  // Revert fields to latest Firestore values
+  r.id = base.id;
+  r.name = base.name || "";
+  r.points = int(base.points || 0);
+  r._state = undefined;
+  delete r._origState; delete r._origId;
+
+  // Clear staged changes for this row
+  staged.add.delete(r.id);
+  staged.edit.delete(r.id);
+  staged.del.delete(r.id);
+
+  updateDirtyButtons();
+  renderTable();
+}
 
   function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function markEdit(idx, patch) {
@@ -356,16 +409,17 @@ function guessPrefixFromClassName(name){
 
   const processSnap = (snap) => {
     rows = [];
-    snap.forEach(d => {
-      const data = d.data();
-      rows.push({
-        id: d.id,
-        name: data.name || "",
-        points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
-        daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
-      });
-    });
-    renderTable();
+snap.forEach(d => {
+  const data = d.data();
+  rows.push({
+    id: d.id,
+    name: data.name || "",
+    points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+    daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
+  });
+});
+renderTable();
+
 
     // Autofill ID prefix if user hasn't typed one yet
     if (typeof idPrefixTouched !== "undefined" && !idPrefixTouched) {
@@ -487,7 +541,7 @@ const batch = writeBatch(db);
     await batch.commit();
     log(`Import committed: ${plan.length} students (mode=${mode})`);
     byId("btnImportCommit").disabled=true;
-    lloadClass();
+    loadClass();
   }
 
   // ===== Button wiring =====
