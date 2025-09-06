@@ -1004,10 +1004,10 @@ byId('btnDeleteClass').addEventListener('click', async () => {
   try {
     await deleteClassDoc(currentClass);
   } catch(e){
-    log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) or e}`);
-    alert("Delete failed. See Change Log for details.");
-  }
-});
+  log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) || e}`);
+  alert("Delete failed. See Change Log for details.");
+}
+
 
   
 async function deleteClass(){
