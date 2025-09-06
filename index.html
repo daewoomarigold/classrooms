@@ -1,14 +1,4 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Classroom Admin — Ground‑Up</title>
-<style>
-:root{--bg:#0b1020;--panel:#0f172a;--panel2:#111827;--muted:#9aa6b2;--text:#e7e9ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--accent:#60a5fa;--border:#1e293b}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 header{position:sticky;top:0;z-index:3;background:#0a0f1f;border-bottom:1px solid var(--border);padding:14px 16px}
 h1{margin:0;font-size:18px}
 main{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px}
@@ -70,11 +60,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </div>
 
 
-<div class="toolbar" style="margin:10px 0">
-<span class="chip">Inline edit</span>
-<span class="chip">Add/Delete</span>
-<span class="chip">Batch save</span>
-</div>
 
 
 <div class="toolbar">
@@ -121,7 +106,9 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </table>
 </div>
 </section>
-</main>  
+</main>
+
+  
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -238,40 +225,40 @@ function guessPrefixFromClassName(name){
   function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
 
   function renderTable(){
-      tbl.innerHTML = "";
-      rows.forEach((r,i)=>{
-      const tr = document.createElement("tr");
-      if(r._state==="add") tr.classList.add("add");
-      if(r._state==="edit") tr.classList.add("edit");
-      if(r._state==="del") tr.classList.add("del");
-      tr.innerHTML = `
-      <td>${i+1}</td>
-      <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
-      <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
-      <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
-      <td>
-      <div class="toolbar">
-      <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
-      </div>
-      </td>`;
-      tbl.appendChild(tr);
-      const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
-      tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
-      idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
-      nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
-      ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
-      
-      
-      [idEl, nameEl, ptsEl].forEach(el => {
-      el.addEventListener("keydown", ev => {
-      if (ev.key === "Enter") {
-      ev.preventDefault();
-      ev.currentTarget.blur();
-      }
-      });
-      });
-      });
-      }
+    tbl.innerHTML = "";
+    rows.forEach((r,i)=>{
+    const tr = document.createElement("tr");
+    if(r._state==="add") tr.classList.add("add");
+    if(r._state==="edit") tr.classList.add("edit");
+    if(r._state==="del") tr.classList.add("del");
+    tr.innerHTML = `
+    <td>${i+1}</td>
+    <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
+    <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
+    <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
+    <td>
+    <div class="toolbar">
+    <button class="btn btnDel">${r._state==="del"?"Undo":"Delete"}</button>
+    </div>
+    </td>`;
+    tbl.appendChild(tr);
+    const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
+    tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
+    idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
+    nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
+    ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
+    
+    
+    [idEl, nameEl, ptsEl].forEach(el => {
+    el.addEventListener("keydown", ev => {
+    if (ev.key === "Enter") {
+    ev.preventDefault();
+    ev.currentTarget.blur();
+    }
+    });
+    });
+    });
+    }
 
   function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function markEdit(idx, patch) {
