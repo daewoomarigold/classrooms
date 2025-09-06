@@ -962,21 +962,7 @@ async function createClassFromModal(){
   }
 }
 
-async function deleteClassDoc(classId){
-  if (!classId) return;
-  // delete all students in batches, then delete class doc
-  const base = ['classes', classId, 'students'];
-  const batchSize = 400;
-
-  // Delete students
-  const studentsSnap = await getDocs(collection(db, ...base));
-  let bat = writeBatch(db);
-  let ops = 0;
-  studentsSnap.forEach(d => {
-    bat.delete(doc(db, ...base, d.id));
-    ops++;
-    if (ops % batchSize === 0) { bat.commit(); bat = writeBatch(db); }
-  });
+});
   await bat.commit();
 
   // Delete class document
