@@ -237,7 +237,7 @@ function guessPrefixFromClassName(name){
   function setDirty(){ byId("btnSave").disabled=false; byId("btnDiscard").disabled=false; }
   function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
 
-  unction renderTable(){
+  function renderTable(){
       tbl.innerHTML = "";
       rows.forEach((r,i)=>{
       const tr = document.createElement("tr");
