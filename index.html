@@ -524,67 +524,91 @@ if(!idPrefixTouched && !byId("idPrefix").value){
   }
 
   async function saveChanges(){
-    if(!currentClass){ alert("Load a class first."); return; }
-    if(!isSignedIn()){ alert("Sign in to save changes."); return; }
-    try{
-      const uid = auth.currentUser && auth.currentUser.uid;
-const email = (auth.currentUser && auth.currentUser.email) || '(no email)';
-log(`Saving as uid=${uid || 'unknown'} email=${email}`);
-const batch = writeBatch(db);
-      staged.del.forEach((_,id)=>batch.delete(doc(db,"classes",currentClass,"students",id)));
-      staged.add.forEach((data,id)=>batch.set(
-        doc(db,"classes",currentClass,"students",id),
+  if(!currentClass){ alert("Load a class first."); return; }
+  if(!isSignedIn()){ alert("Sign in to save changes."); return; }
+
+  try{
+    const uid = auth.currentUser && auth.currentUser.uid;
+    const email = (auth.currentUser && auth.currentUser.email) || '(no email)';
+    log(`Saving as uid=${uid || 'unknown'} email=${email}`);
+
+    const batch = writeBatch(db);
+
+    // 1) Apply staged deletes
+    staged.del.forEach((_, id) => {
+      batch.delete(doc(db, "classes", currentClass, "students", id));
+    });
+
+    // 2) Apply staged adds
+    staged.add.forEach((data, id) => {
+      batch.set(
+        doc(db, "classes", currentClass, "students", id),
         {
           id: data.id,
           name: data.name || "",
           points: { daily: 0, total: int(data.points || 0) }
         },
         { merge: true }
-      ));
-      staged.edit.forEach((patch, id) => {
-  if (!staged.add.has(id)) {
-    const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
-    const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
-    const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
-const classCount = stagedClass ? 1 : 0;
-const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
-if(!total){ log("No changes to save."); return; }
+      );
+    });
 
-    // Always write a complete, rules-compliant fragment
-    batch.set(
-      doc(db, "classes", currentClass, "students", id),
-      { id, name, points: { daily, total } },
-      { merge: true }
-    );
+    // 3) Apply staged edits (skip anything that was an add in this same batch)
+    staged.edit.forEach((patch, id) => {
+      if (!staged.add.has(id)) {
+        const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
+        const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
+        const total = (patch.points !== undefined) ? int(patch.points) : int(existing.points || 0);
+        const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
+
+        batch.set(
+          doc(db, "classes", currentClass, "students", id),
+          { id, name, points: { daily, total } },
+          { merge: true }
+        );
+      }
+    });
+
+    // 4) Early-return check OUTSIDE loops (also counts class meta edits)
+    const classCount = stagedClass ? 1 : 0;
+    const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
+    if (!total) { log("No changes to save."); return; }
+
+    // 5) Persist class metadata (e.g., displayName) if staged
+    if (classCount) {
+      batch.set(
+        doc(db, "classes", currentClass),
+        stagedClass,
+        { merge: true }
+      );
+    }
+
+    // 6) Commit
+    await batch.commit();
+    log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size} class=${classCount}`);
+
+    // 7) Local state cleanup
+    rows = rows
+      .filter(r => !staged.del.has(r.id))
+      .map(r => ({ id: r.id, name: r.name, points: int(r.points) }));
+
+    staged = { add:new Map(), edit:new Map(), del:new Map() };
+    stagedClass = null;
+    if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+
+    renderTable();
+    updateDirtyButtons();      // single source of truth for Save/Discard
+    history = [];
+    future  = [];
+
+  } catch(e){
+    const code = e && e.code ? e.code : 'unknown';
+    const msg  = e && e.message ? e.message : String(e);
+    log(`Save failed: ${code} - ${msg}`);
+    alert(`Save failed: ${code}. Check Firestore security rules and auth.`);
+    throw e;
   }
-});
-      const total = staged.del.size + staged.add.size + staged.edit.size; if(!total){ log("No changes to save."); return; }
-      // Save class metadata if staged
-if (classCount) {
-  batch.set(doc(db, "classes", currentClass), stagedClass, { merge: true });
 }
 
-      await batch.commit();
-      stagedClass = null;                     // NEW: class meta is now saved
-if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
-updateDirtyButtons();                   // keep buttons in sync
-      log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size} class=${classCount}`);
-      rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
-      staged = { add:new Map(), edit:new Map(), del:new Map() };
-      byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; renderTable();
-      // reset undo/redo history after successful save
-      history = [];
-      future  = [];
-      stagedClass = null;
-byId('btnRevertClass').disabled = true;
-    } catch(e){
-      const code = e && e.code ? e.code : 'unknown';
-      const msg = e && e.message ? e.message : String(e);
-      log(`Save failed: ${code} - ${msg}`);
-      alert(`Save failed: ${code}. Check Firestore security rules and auth.`);
-      throw e; // keep the original promise rejection for console visibility
-    }
-  }
 
   function discardChanges(){ loadClass(); }
 
