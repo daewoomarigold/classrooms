@@ -218,9 +218,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   }
 
   function guessPrefixFromClassName(name){
-    const m = String(name || "").match(/(\\d{1,2})/);
-    return m ? \`G\${m[1]}_` : "";
-  }
+  const m = String(name || "").match(/(\d{1,2})/);
+  return m ? `G${m[1]}_` : "";
+}
+
 
   function restoreState(snapshot) {
     rows = snapshot.rows;
