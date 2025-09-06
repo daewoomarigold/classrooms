@@ -42,7 +42,83 @@
   </header>
 
   <main>
-    <!-- UI omitted for brevity (unchanged) -->
+    <section>
+      <div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
+      <div class="toolbar" style="margin:10px 0 6px">
+        <button class="btn" id="btnSignIn">Sign in with Google</button>
+        <button class="btn" id="btnSignOut" disabled>Sign out</button>
+      </div>
+
+      <label>Available Classes</label>
+      <div class="toolbar">
+        <select id="classSelect" style="min-width:220px"></select>
+        <button class="btn" id="btnRefreshClasses">↻ Refresh</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label>Class Name</label>
+          <input id="className" type="text" placeholder="Grade5" />
+        </div>
+        <div>
+          <label>Student ID Prefix</label>
+          <input id="idPrefix" type="text" placeholder="G5_" />
+        </div>
+      </div>
+
+      <div class="toolbar" style="margin-top:10px">
+        <button id="btnLoad" class="btn primary">Load Class</button>
+        <button id="btnListen" class="btn">Live Listen: Off</button>
+        <button id="btnExport" class="btn">Export CSV</button>
+      </div>
+
+      <div class="toolbar" style="margin:10px 0">
+        <span class="chip">Inline edit</span>
+        <span class="chip">Add/Delete</span>
+        <span class="chip">Batch save</span>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnAdd" class="btn">+ Add Student</button>
+        <button id="btnSave" class="btn primary" disabled>Save Changes</button>
+        <button id="btnDiscard" class="btn" disabled>Discard</button>
+      </div>
+
+      <label style="margin-top:12px">Change Log</label>
+      <pre id="log" class="log"></pre>
+
+      <label style="margin-top:12px">CSV/TXT Import</label>
+      <div class="row">
+        <div><input id="file" type="file" accept=".csv,.txt" /></div>
+        <div>
+          <select id="importMode">
+            <option value="append">Append</option>
+            <option value="replace">Replace</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:8px">
+        <button id="btnImportDry" class="btn">Dry Run</button>
+        <button id="btnImportCommit" class="btn" disabled>Commit</button>
+      </div>
+    </section>
+
+    <section>
+      <div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
+        <table id="table">
+          <thead>
+            <tr>
+              <th style="width:60px">#</th>
+              <th style="width:200px">Student ID</th>
+              <th>Name</th>
+              <th style="width:120px">Points (Total)</th>
+              <th style="width:160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
 <script type="module">
@@ -65,8 +141,7 @@
   const byId = id => document.getElementById(id);
   const log = (...a) => {
     const el = byId("log");
-    el.textContent += a.join(" ") + "
-";
+    el.textContent += a.join(" ") + "\n";
     el.scrollTop = el.scrollHeight;
   };
   const tbl = document.querySelector("#table tbody");
