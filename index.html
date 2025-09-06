@@ -235,7 +235,9 @@ function guessPrefixFromClassName(name){
       del: new Map(snapshot.staged.del),
     };
     renderTable();
-updateDirtyButtons();
+    updateDirtyButtons();
+  } // <-- properly close restoreState here
+
   function pushHistory(label) {
     history.push({ label, snapshot: deepCloneState() });
     future = [];
