@@ -235,7 +235,7 @@ function guessPrefixFromClassName(name){
       del: new Map(snapshot.staged.del),
     };
     renderTable();
-    cconst dirty = staged.add.size || staged.edit.size || staged.del.size || !!stagedClass;
+    const dirty = staged.add.size || staged.edit.size || staged.del.size || !!stagedClass;
 byId("btnSave").disabled    = !dirty;
 byId("btnDiscard").disabled = !dirty;
   }
