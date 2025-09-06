@@ -156,38 +156,40 @@ const isSignedIn = () => !!auth.currentUser;
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
   function setDirty(){ byId("btnSave").disabled=false; byId("btnDiscard").disabled=false; }
   function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
-  function setAuthUI(user){
-    const st = byId("authStatus");
-    const txt = byId("authText");
-    const signedIn = !!user;
-  
-    if (signedIn) {
-      st.classList.remove("signedout");
-      st.classList.add("signedin");
-      txt.textContent = "Signed in as " + user.email;
-      byId("btnSignOut").disabled = false;
-    } else {
-      st.classList.remove("signedin");
-      st.classList.add("signedout");
-      txt.textContent = "Signed out";
-      byId("btnSignOut").disabled = true;
-    }
-  
-    // Enable/disable controls based on sign-in status
-    const allIds = [
-      "btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport",
-      "btnAdd","btnSave","btnDiscard","file","importMode","btnImportDry","btnImportCommit"
-    ];
-    if (!signedIn) {
-      allIds.forEach(id => { const el = byId(id); if (el) el.disabled = true; });
-    } else {
-      ["btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport","btnAdd","file","importMode","btnImportDry"]
-        .forEach(id => { const el = byId(id); if (el) el.disabled = false; });
-      // btnSave / btnDiscard / btnImportCommit remain controlled by dirty/dry-run state
-    }
+function setAuthUI(user){
+  const st = byId("authStatus");
+  const txt = byId("authText");
+  const signedIn = !!user;
+
+  if (signedIn) {
+    st.classList.remove("signedout");
+    st.classList.add("signedin");
+    txt.textContent = "Signed in as " + user.email;
+    byId("btnSignOut").disabled = false;
+  } else {
+    st.classList.remove("signedin");
+    st.classList.add("signedout");
+    txt.textContent = "Signed out";
+    byId("btnSignOut").disabled = true;
   }
+
+  // Enable/disable controls based on sign-in status
+  const allIds = [
+    "btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport",
+    "btnAdd","btnSave","btnDiscard","file","importMode","btnImportDry","btnImportCommit"
+  ];
+  if (!signedIn) {
+    allIds.forEach(id => { const el = byId(id); if (el) el.disabled = true; });
+  } else {
+    ["btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport","btnAdd","file","importMode","btnImportDry"]
+      .forEach(id => { const el = byId(id); if (el) el.disabled = false; });
+    // btnSave / btnDiscard / btnImportCommit remain controlled by dirty/dry-run state
+  }
+}
+
+function renderTable(){
+
   
-  function renderTable(){
     tbl.innerHTML = "";
     rows.forEach((r,i)=>{
       const tr = document.createElement("tr");
@@ -295,19 +297,18 @@ const isSignedIn = () => !!auth.currentUser;
   byId("btnSignOut").addEventListener("click",async()=>{ try{ await signOut(auth);}catch(e){ log("auth:", e.code||e.message); }});
 
   onAuthStateChanged(auth, (user) => {
-  setAuthUI(user);
-  log("auth state:", (user && user.email) || "none");
-  if (user) {
-    refreshClasses();
-  } else {
-    const select = byId("classSelect");
-    if (select) select.innerHTML = "";
-    tbl.innerHTML = "";
-    log("Sign in to view classes.");
-  }
-});
+    setAuthUI(user);
+    log("auth state:", (user && user.email) || 'none');
+    if (user) {
+    } else {
+      const select = byId("classSelect");
+      if (select) select.innerHTML = "";
+      tbl.innerHTML = "";
+      log("Sign in to view classes.");
+    }
+  });
 
+  refreshClasses();
 </script>
 </body>
 </html>
-
