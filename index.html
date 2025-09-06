@@ -170,7 +170,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getDocs, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, getDocs, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
