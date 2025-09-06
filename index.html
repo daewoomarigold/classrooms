@@ -573,24 +573,109 @@ function parseFileToNames(text){
       .map(l => l.split(',')[0].trim())
       .filter(Boolean);
   }
+// --- Roster parser: col1=index (numeric), col2=name, optional col3=points ---
+// Supports both tab-delimited TXT and CSV; accepts optional header row
+function parseRoster(text){
+  const normalized = (text || '').replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+
+  // Prefer tab; fall back to comma per line
+  const split = (l) => (l.includes('\t') ? l.split('\t') : l.split(',')).map(s => s.trim());
+
+  const firstCols = split(lines[0]);
+  const headerish = firstCols.some(h => /^(id|index|name|points)$/i.test(h));
+  const rows = headerish ? lines.slice(1) : lines;
+  const headers = headerish ? firstCols.map(h => h.toLowerCase()) : [];
+
+  const getByHeader = (cols, key) => {
+    const i = headers.indexOf(key);
+    return i >= 0 ? (cols[i] || '').trim() : '';
+  };
+
+  return rows.map(l => {
+    const cols = split(l);
+    let rawIndex = '', rawId = '', name = '', points = '';
+
+    if (headerish) {
+      rawId    = getByHeader(cols, 'id');     // if present
+      rawIndex = getByHeader(cols, 'index');  // if present
+      name     = getByHeader(cols, 'name');
+      points   = getByHeader(cols, 'points');
+    } else {
+      // Expected: [index, name, (points?)]
+      if (/^\d+$/.test(cols[0]) && cols[1]) {
+        rawIndex = cols[0];
+        name     = cols[1];
+        points   = cols[2] || '';
+      } else {
+        // Fallback: name[,points]
+        name   = cols[0] || '';
+        points = cols[1] || '';
+      }
+    }
+
+    // Keep nicknames in parentheses as part of the name
+    name = (name || '').trim();
+
+    return { rawIndex, rawId, name, points };
+  }).filter(r => r.name || r.rawId);
+}
 
   async function importDry(){
-    if(!currentClass){ alert("Load a class first."); return; }
-    if(!isSignedIn()){ alert("Sign in to run import."); return; }
-    const f=byId("file");
-    if(!f.files||!f.files.length){ alert("Choose a CSV/TXT file."); return; }
-    const text=await f.files[0].text();
-    const rowsCsv = parseCSV(text);
-    if(!rowsCsv.length){ alert("No rows detected in file."); return; }
-    const pref=byId("idPrefix").value.trim();
-    if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
-    let idx=1; const used=new Set(rows.map(r=>r.id));
-    const nextId=()=>{ let id; do { id=`${pref}${String(idx++).padStart(4,"0")}`; } while(used.has(id)); used.add(id); return id; };
-    const plan = rowsCsv.map(r=>({ id: (r.id&&r.id.trim())? r.id.trim(): nextId(), name: r.name, points: Math.max(0, Math.trunc(Number(r.points||0)||0) ) }));
-    log(`Dry Run: ${plan.length} to add/merge`);
-    byId("btnImportCommit").disabled=false;
-    byId("btnImportCommit")._plan=plan;
-  }
+  if(!currentClass){ alert("Load a class first."); return; }
+  if(!isSignedIn()){ alert("Sign in to run import."); return; }
+
+  const f = byId("file");
+  if(!f.files || !f.files.length){ alert("Choose a CSV/TXT file."); return; }
+
+  const text = await f.files[0].text();
+  const rowsCsv = parseRoster(text);
+  if(!rowsCsv.length){ alert("No rows detected in file."); return; }
+
+  const pref = byId("idPrefix").value.trim();
+  if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
+
+  // Track used IDs to avoid collisions with existing rows
+  const used = new Set(rows.map(r => r.id));
+  const pad  = (n, width=4) => String(n).padStart(width, "0");
+
+  // For auto-generated fallback sequence
+  let seq = 1;
+  const nextSeqId = () => {
+    let id;
+    do { id = `${pref}${pad(seq++)}`; } while (used.has(id));
+    used.add(id);
+    return id;
+  };
+
+  const toPlanId = (r) => {
+    // 1) If file has a numeric index in col 1 -> prefix + padded index
+    if (r.rawIndex && /^\d+$/.test(r.rawIndex)) {
+      const id = `${pref}${pad(parseInt(r.rawIndex, 10))}`;
+      used.add(id);
+      return id;
+    }
+    // 2) If file already provided a full ID -> use it
+    if (r.rawId && !used.has(r.rawId)) {
+      used.add(r.rawId);
+      return r.rawId;
+    }
+    // 3) Otherwise auto-generate (rare path)
+    return nextSeqId();
+  };
+
+  const plan = rowsCsv.map(r => ({
+    id: toPlanId(r),
+    name: (r.name || '').trim(),                          // keep parentheses if present
+    points: Math.max(0, Math.trunc(Number(r.points || 0) || 0)),
+  }));
+
+  log(`Dry Run: ${plan.length} to add/merge`);
+  byId("btnImportCommit").disabled = false;
+  byId("btnImportCommit")._plan = plan;
+}
+
 
   async function importCommit(){
     const plan=byId("btnImportCommit")._plan||[];
