@@ -111,7 +111,7 @@
               <th style="width:60px">#</th>
               <th style="width:200px">Student ID</th>
               <th>Name</th>
-              <th style="width:120px">Points</th>
+              <th style="width:120px">Points (Total)</th>
               <th style="width:160px">Actions</th>
             </tr>
           </thead>
@@ -135,8 +135,7 @@
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
 
-  // === Auth gating: sign-in required for all features ===
-const isSignedIn = () => !!auth.currentUser;
+  const isSignedIn = () => !!auth.currentUser;
 
   const $ = s => document.querySelector(s);
   const byId = id => document.getElementById(id);
@@ -150,46 +149,12 @@ const isSignedIn = () => !!auth.currentUser;
 
   const int = (n) => Math.max(0, Math.trunc(Number(n)||0));
 
-  function digitsFrom(s){ return Array.from(s||"").filter(ch=>ch>="0"&&ch<="9").join(""); }
-  function prefixFor(n){ const d = digitsFrom(n); return d?`G${d}_`:""; }
-  function ensurePrefixFilled(){ const pref = byId("idPrefix").value.trim(); if(!pref) byId("idPrefix").value = prefixFor(byId("className").value.trim()); }
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
+
   function setDirty(){ byId("btnSave").disabled=false; byId("btnDiscard").disabled=false; }
   function resetState(){ rows=[]; staged={ add:new Map(), edit:new Map(), del:new Map() }; renderTable(); byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; log("--- state cleared ---"); }
-function setAuthUI(user){
-  const st = byId("authStatus");
-  const txt = byId("authText");
-  const signedIn = !!user;
 
-  if (signedIn) {
-    st.classList.remove("signedout");
-    st.classList.add("signedin");
-    txt.textContent = "Signed in as " + user.email;
-    byId("btnSignOut").disabled = false;
-  } else {
-    st.classList.remove("signedin");
-    st.classList.add("signedout");
-    txt.textContent = "Signed out";
-    byId("btnSignOut").disabled = true;
-  }
-
-  // Enable/disable controls based on sign-in status
-  const allIds = [
-    "btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport",
-    "btnAdd","btnSave","btnDiscard","file","importMode","btnImportDry","btnImportCommit"
-  ];
-  if (!signedIn) {
-    allIds.forEach(id => { const el = byId(id); if (el) el.disabled = true; });
-  } else {
-    ["btnRefreshClasses","classSelect","className","idPrefix","btnLoad","btnListen","btnExport","btnAdd","file","importMode","btnImportDry"]
-      .forEach(id => { const el = byId(id); if (el) el.disabled = false; });
-    // btnSave / btnDiscard / btnImportCommit remain controlled by dirty/dry-run state
-  }
-}
-
-function renderTable(){
-
-  
+  function renderTable(){
     tbl.innerHTML = "";
     rows.forEach((r,i)=>{
       const tr = document.createElement("tr");
@@ -222,25 +187,28 @@ function renderTable(){
   function toggleDelete(idx){ const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function adjustPoints(idx,delta){ const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
   function markEdit(idx,patch){ const r=rows[idx]; if(r._state==="del") return; const oldId=r.id; Object.assign(r,patch); if(patch.id && patch.id!==oldId){ staged.del.set(oldId,true); staged.add.set(r.id,{ id:r.id, name:r.name||"", points:int(r.points||0) }); r._state="edit"; } else { if(patch.points!==undefined) patch.points=int(patch.points); staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), ...patch }); if(r._state!=="add") r._state="edit"; } setDirty(); renderTable(); }
-  function addRow(){ ensurePrefixFilled(); const pref=byId("idPrefix").value.trim(); let i=1; while(rows.find(r=>r.id===`${pref}${String(i).padStart(4,"0")}`)) i++; const id=`${pref}${String(i).padStart(4,"0")}`; const r={ id, name:"", points:0, _state:"add" }; rows.push(r); staged.add.set(id,{ id, name:"", points:0 }); setDirty(); renderTable(); }
-
-  async function ensureClassDocExists(name){ try{ await setDoc(doc(db,"classes",name),{ updatedAt:serverTimestamp() },{ merge:true }); }catch(e){ log("ensureClassDocExists:", e.code||e.message); } }
-
-  async function refreshClasses(){ const select=byId("classSelect"); select.innerHTML=""; try{ const s=await getDocs(query(collection(db,"classes"))); const list=[]; s.forEach(d=>list.push(d.id)); list.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})); if(!list.length){ const opt=document.createElement("option"); opt.value=""; opt.textContent="(none found)"; select.appendChild(opt); } else { for(const v of list){ const opt=document.createElement("option"); opt.value=v; opt.textContent=v; select.appendChild(opt); } } log(`Found ${list.length} classes.`); }catch(e){ log("classes read:", e.code||e.message); } }
+  function addRow(){ const id=`${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`; const r={ id, name:"", points:0, _state:"add" }; rows.push(r); staged.add.set(id,{ id, name:"", points:0 }); setDirty(); renderTable(); }
 
   async function loadClass({live=false}={}){
     const className = byId("className").value.trim();
     if(!className){ alert("Enter a class name"); return; }
     currentClass = className;
-    await ensureClassDocExists(currentClass);
-    ensurePrefixFilled();
     resetState();
     if(unsubscribe){ unsubscribe(); unsubscribe=null; }
     const coll = collection(db,"classes",className,"students");
+    const processSnap = (snap) => {
+      rows=[];
+      snap.forEach(d=>{
+        const data = d.data();
+        rows.push({ id:d.id, name:data.name||"", points:(data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0 });
+      });
+      renderTable();
+      log(`Loaded ${rows.length} students for ${className}`);
+    };
     if(live){
-      unsubscribe = onSnapshot(query(coll),(snap)=>{ rows=[]; snap.forEach(d=>rows.push({ id:d.id, name:d.data().name||"", points:int(d.data().points||0) })); renderTable(); log(`Live update: ${rows.length} students`); }, (err)=>log("students listen:", err.code||err.message));
-    }else{
-      try{ const snap = await getDocs(query(coll)); rows=[]; snap.forEach(d=>rows.push({ id:d.id, name:d.data().name||"", points:int(d.data().points||0) })); renderTable(); log(`Loaded ${rows.length} students for ${className}`); }catch(e){ log("students read:", e.code||e.message); }
+      unsubscribe = onSnapshot(query(coll),processSnap,(err)=>log("students listen:", err.code||err.message));
+    } else {
+      try{ const snap=await getDocs(query(coll)); processSnap(snap); }catch(e){ log("students read:", e.code||e.message); }
     }
   }
 
@@ -249,11 +217,25 @@ function renderTable(){
     if(!isSignedIn()){ alert("Sign in to save changes."); return; }
     const batch = writeBatch(db);
     staged.del.forEach((_,id)=>batch.delete(doc(db,"classes",currentClass,"students",id)));
-    staged.add.forEach((data,id)=>batch.set(doc(db,"classes",currentClass,"students",id),{ id:data.id, name:data.name||"", points:int(data.points||0) },{ merge:true }));
-    staged.edit.forEach((patch,id)=>{ if(!staged.add.has(id)) batch.set(doc(db,"classes",currentClass,"students",id),{ ...(patch.name!==undefined?{name:patch.name}:{}) , ...(patch.points!==undefined?{points:int(patch.points)}:{}) },{ merge:true }); });
+    staged.add.forEach((data,id)=>batch.set(
+      doc(db,"classes",currentClass,"students",id),
+      {
+        id: data.id,
+        name: data.name || "",
+        points: { daily: 0, total: int(data.points || 0) }
+      },
+      { merge: true }
+    ));
+    staged.edit.forEach((patch,id)=>{
+      if(!staged.add.has(id)){
+        const updateData={};
+        if(patch.name!==undefined) updateData.name=patch.name;
+        if(patch.points!==undefined) updateData["points.total"] = int(patch.points);
+        batch.set(doc(db,"classes",currentClass,"students",id),updateData,{ merge:true });
+      }
+    });
     const total = staged.del.size + staged.add.size + staged.edit.size; if(!total){ log("No changes to save."); return; }
     await batch.commit();
-    await ensureClassDocExists(currentClass);
     log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size}`);
     rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
     staged = { add:new Map(), edit:new Map(), del:new Map() };
@@ -262,53 +244,57 @@ function renderTable(){
 
   function discardChanges(){ loadClass({ live:!!unsubscribe }); }
 
-  async function exportCSV(){ if(!currentClass){ alert("Load a class first."); return; } const rowsOut=[["id","name","points"],...rows.map(r=>[r.id,r.name||"",int(r.points||0)])]; const csv=rowsOut.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"); const blob=new Blob([csv],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`${currentClass}_students.csv`; document.body.appendChild(a); a.click(); a.remove(); }
-  function parseFileToNames(text){ const clean=(text||"").replaceAll("\r",""); return clean.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",")[0].trim()).filter(Boolean); }
+  // ===== CSV Import (Step 4) =====
+  function parseFileToNames(text){
+    const clean=(text||"").replaceAll("
+","
+");
+    return clean.split("
+").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",")[0].trim()).filter(Boolean);
+  }
 
-  async function importDry(){ if(!currentClass){ alert("Load a class first."); return; } if(!isSignedIn()){ alert("Sign in to run import."); return; } const f=byId("file"); if(!f.files||!f.files.length){ alert("Choose a CSV/TXT file."); return; } const text=await f.files[0].text(); const names=parseFileToNames(text); if(!names.length){ alert("No names detected in file."); return; } const pref=byId("idPrefix").value.trim()||prefixFor(currentClass); let idx=1; while(rows.find(r=>r.id===`${pref}${String(idx).padStart(4,"0")}`)) idx++; const plan=[]; for(const name of names){ const id=`${pref}${String(idx++).padStart(4,"0")}`; const exists=rows.find(r=>r.id===id); plan.push({ id,name,exists }); } log(`Dry Run: ${plan.filter(p=>!p.exists).length} to add, ${plan.filter(p=>p.exists).length} already exist.`); byId("btnImportCommit").disabled=false; byId("btnImportCommit")._plan=plan; }
+  async function importDry(){
+    if(!currentClass){ alert("Load a class first."); return; }
+    if(!isSignedIn()){ alert("Sign in to run import."); return; }
+    const f=byId("file");
+    if(!f.files||!f.files.length){ alert("Choose a CSV/TXT file."); return; }
+    const text=await f.files[0].text();
+    const names=parseFileToNames(text);
+    if(!names.length){ alert("No names detected in file."); return; }
+    const pref=byId("idPrefix").value.trim();
+    if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
+    let idx=1; const used=new Set(rows.map(r=>r.id));
+    const nextId=()=>{ let id; do { id=`${pref}${String(idx++).padStart(4,"0")}`; } while(used.has(id)); used.add(id); return id; };
+    const plan = names.map(name=>({ id: nextId(), name }));
+    log(`Dry Run: ${plan.length} to add`);
+    byId("btnImportCommit").disabled=false;
+    byId("btnImportCommit")._plan=plan;
+  }
 
-  async function importCommit(){ const plan=byId("btnImportCommit")._plan||[]; if(!plan.length){ alert("Run Dry Run first."); return; } if(!isSignedIn()){ alert("Sign in to import."); return; } const mode=byId("importMode").value; const batch=writeBatch(db); const base=["classes",currentClass,"students"]; if(mode==="replace"){ const keep=new Set(plan.map(p=>p.id)); for(const r of rows){ if(!keep.has(r.id)) batch.delete(doc(db,...base,r.id)); } } for(const p of plan){ batch.set(doc(db,...base,p.id),{ id:p.id,name:p.name,points:0 },{ merge:true }); } await batch.commit(); log(`Import committed: ${plan.length} rows (mode=${mode})`); byId("btnImportCommit").disabled=true; loadClass({ live:!!unsubscribe }); }
-
-  byId("btnLoad").addEventListener("click",()=>loadClass({ live:false }));
-  byId("btnListen").addEventListener("click",async e=>{ const on=!!unsubscribe; if(on){ unsubscribe(); unsubscribe=null; e.target.textContent="Live Listen: Off"; } else { await loadClass({ live:true }); e.target.textContent="Live Listen: On"; } });
-  byId("btnExport").addEventListener("click",exportCSV);
-  byId("btnAdd").addEventListener("click",addRow);
-  byId("btnSave").addEventListener("click",saveChanges);
-  byId("btnDiscard").addEventListener("click",discardChanges);
-  byId("btnImportDry").addEventListener("click",importDry);
-  byId("btnImportCommit").addEventListener("click",importCommit);
-  byId("btnRefreshClasses").addEventListener("click",refreshClasses);
-  byId("classSelect").addEventListener("change",e=>{ const v=e.target.value; if(!v) return; byId("className").value=v; ensurePrefixFilled(); });
-  byId("btnSignIn").addEventListener("click", async () => {
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (e) {
-      log("auth:", e.code || e.message);
-      if (e.code === 'auth/configuration-not-found' || e.code === 'auth/operation-not-allowed') {
-        log("Hint: Enable Google provider in Firebase Console → Authentication → Sign-in method, and add this origin under Authorized domains.");
-      }
-      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
-        log("Retrying with redirect flow...");
-        try { await signInWithRedirect(auth, provider); }
-        catch (e2) { log("auth redirect:", e2.code || e2.message); }
-      }
+  async function importCommit(){
+    const plan=byId("btnImportCommit")._plan||[];
+    if(!plan.length){ alert("Run Dry Run first."); return; }
+    if(!isSignedIn()){ alert("Sign in to import."); return; }
+    const mode=byId("importMode").value;
+    const batch=writeBatch(db);
+    const base=["classes",currentClass,"students"];
+    if(mode==="replace"){
+      const keep=new Set(plan.map(p=>p.id));
+      for(const r of rows){ if(!keep.has(r.id)) batch.delete(doc(db,...base,r.id)); }
     }
-  });
-  byId("btnSignOut").addEventListener("click",async()=>{ try{ await signOut(auth);}catch(e){ log("auth:", e.code||e.message); }});
-
-  onAuthStateChanged(auth, (user) => {
-    setAuthUI(user);
-    log("auth state:", (user && user.email) || 'none');
-    if (user) {
-    } else {
-      const select = byId("classSelect");
-      if (select) select.innerHTML = "";
-      tbl.innerHTML = "";
-      log("Sign in to view classes.");
+    for(const p of plan){
+      batch.set(doc(db,...base,p.id), { id:p.id, name:p.name, points:{ daily:0, total:0 } }, { merge:true });
     }
-  });
+    await batch.commit();
+    log(`Import committed: ${plan.length} students (mode=${mode})`);
+    byId("btnImportCommit").disabled=true;
+    loadClass({ live:!!unsubscribe });
+  }
 
-  refreshClasses();
+  // Bind import buttons
+  byId("btnImportDry").addEventListener("click", importDry);
+  byId("btnImportCommit").addEventListener("click", importCommit);
+
 </script>
 </body>
 </html>
