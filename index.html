@@ -251,15 +251,19 @@
     if(unsubscribe){ unsubscribe(); unsubscribe=null; }
     const coll = collection(db,"classes",className,"students");
     const processSnap = (snap) => {
-      rows=[];
-snap.forEach(d=>{
-  const data = d.data();
-  rows.push({
-    id: d.id,
-    name: data.name || "",
-    points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
-    daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily) : 0
-  });
+      rows = [];
+      snap.forEach(d => {
+        const data = d.data();
+        rows.push({
+          id: d.id,
+          name: data.name || "",
+          points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+          daily: (data.points && typeof data.points.daily === 'number') ? int(data.points.daily) : 0
+        });
+      });
+      renderTable();
+      log(`Loaded ${rows.length} students for ${className}`);
+    };
 });
     if(live){
       unsubscribe = onSnapshot(query(coll),processSnap,(err)=>log("students listen:", err.code||err.message));
