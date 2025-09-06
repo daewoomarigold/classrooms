@@ -187,48 +187,44 @@
 
   function toggleDelete(idx){ const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
   function adjustPoints(idx,delta){ const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
- function markEdit(idx, patch) {
-  const r = rows[idx];
-  if (r._state === "del") return;
+  function markEdit(idx,patch){
+    const r = rows[idx];
+    if(r._state === "del") return;
+    const prevId = r.id;
 
-  const prevId = r.id;
+    // Apply patch to in-memory row
+    Object.assign(r, patch);
+    if(patch.points !== undefined) r.points = int(patch.points);
 
-  // Apply patch to the in-memory row first
-  Object.assign(r, patch);
-  if (patch.points !== undefined) r.points = int(patch.points);
-
-  // If the ID changed, treat as a rename: delete old id, add new id
-  if (patch.id && patch.id !== prevId) {
-    staged.del.set(prevId, true);
-    staged.add.set(r.id, {
-      id: r.id,
-      name: r.name || "",
-      points: int(r.points || 0),
-    });
-    r._state = "edit";
-  } else {
-    // For newly added rows, keep the staging in staged.add (not staged.edit)
-    if (staged.add.has(r.id) || r._state === "add") {
-      const cur = staged.add.get(r.id) || { id: r.id, name: "", points: 0 };
-      const next = { ...cur, id: r.id };
-      if (patch.name !== undefined) next.name = r.name || "";
-      if (patch.points !== undefined) next.points = int(r.points || 0);
-      staged.add.set(r.id, next);
+    // If ID changed, treat as rename: delete old, add new
+    if (patch.id && patch.id !== prevId) {
+      staged.del.set(prevId, true);
+      staged.add.set(r.id, { id: r.id, name: r.name || "", points: int(r.points || 0) });
+      r._state = "edit"; // visually mark
     } else {
-      // Existing row: stage partial edits
-      const cur = staged.edit.get(r.id) || {};
-      const next = { ...cur };
-      if (patch.name !== undefined) next.name = r.name;
-      if (patch.points !== undefined) next.points = int(r.points || 0);
-      if (patch.id !== undefined) next.id = r.id;
-      staged.edit.set(r.id, next);
-      if (r._state !== "add") r._state = "edit";
+      // If this row was newly added, ensure edits update staged.add (not staged.edit)
+      if (staged.add.has(r.id) || r._state === "add") {
+        const cur = staged.add.get(r.id) || { id: r.id, name: "", points: 0 };
+        const next = { ...cur };
+        if (patch.name !== undefined) next.name = r.name || "";
+        if (patch.points !== undefined) next.points = int(r.points || 0);
+        // keep id in sync
+        next.id = r.id;
+        staged.add.set(r.id, next);
+      } else {
+        // Existing row: stage partial edits
+        const cur = staged.edit.get(r.id) || {};
+        const next = { ...cur };
+        if (patch.name !== undefined) next.name = r.name;
+        if (patch.points !== undefined) next.points = int(r.points || 0);
+        if (patch.id !== undefined) next.id = r.id;
+        staged.edit.set(r.id, next);
+        if (r._state !== "add") r._state = "edit";
+      }
     }
-  }
-
-  setDirty();
-  renderTable();
-}
+    setDirty();
+    renderTable();
+  }); r._state="edit"; } else { if(patch.points!==undefined) patch.points=int(patch.points); staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), ...patch }); if(r._state!=="add") r._state="edit"; } setDirty(); renderTable(); }
   function addRow(){ const id=`${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`; const r={ id, name:"", points:0, _state:"add" }; rows.push(r); staged.add.set(id,{ id, name:"", points:0 }); setDirty(); renderTable(); }
 
   async function loadClass({live=false}={}){
