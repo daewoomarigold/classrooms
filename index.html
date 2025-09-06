@@ -185,6 +185,16 @@
       idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
       nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
       ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
+
+      // Step 2 — blur on Enter to force change handlers
+      [idEl, nameEl, ptsEl].forEach(el => {
+        el.addEventListener("keydown", ev => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            ev.currentTarget.blur();
+          }
+        });
+      });
     });
   }
 
@@ -234,6 +244,7 @@
     renderTable();
   }
 
+  // Step 1 — replaced addRow() with autofocus and Enter-to-blur on the name field
   function addRow(){
     const id = `${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`;
     const r = { id, name:"", points:0, _state:"add" };
@@ -241,6 +252,24 @@
     staged.add.set(id,{ id, name:"", points:0 });
     setDirty();
     renderTable();
+
+    // Auto-focus the new row's name input
+    setTimeout(() => {
+      const lastRow = tbl.lastElementChild;
+      if (lastRow) {
+        const nameInput = lastRow.querySelector("input.cell.name");
+        if (nameInput) {
+          nameInput.focus();
+          // Pressing Enter blurs → triggers existing change listener → stages edit
+          nameInput.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              nameInput.blur();
+            }
+          }, { once: true });
+        }
+      }
+    }, 0);
   }
 
   async function loadClass({live=false}={}){
