@@ -22,7 +22,7 @@ input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;back
 .btn.primary{border-color:var(--accent)}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.log{height:160px;background:#000;color:#9efca0;border-radius:10px;border:1px solid var(--border);padding:10px;overflow-y:auto;overflow-x:hidden;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
+.log{height:160px;background:#000;color:#9efca0;border-radius:10px;border:1px solid var(--border);padding:10px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace,;font-size:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
 th{position:sticky;top:0;background:var(--panel);color:var(--muted);text-align:left}
@@ -64,8 +64,9 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
 
 <div class="toolbar" style="margin-top:10px">
-<button id="btnLoad" class="btn primary">Load Class</button>
-<button id="btnExport" class="btn">Export CSV</button>
+<button id=\"btnLoad\" class=\"btn primary\">Load Class<\/button>
+<button id=\"btnCreate\" class=\"btn\">Create Class<\/button>
+<button id=\"btnExport\" class=\"btn\">Export CSV<\/button>
 </div>
 
 
@@ -409,18 +410,14 @@ function revertRow(idx){
 
   const processSnap = (snap) => {
     rows = [];
-serverBaseline = new Map();
 snap.forEach(d => {
   const data = d.data();
-  const row = {
+  rows.push({
     id: d.id,
     name: data.name || "",
     points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
     daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
-    _baselineId: d.id,
-  };
-  rows.push(row);
-  serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
+  });
 });
 renderTable();
 
@@ -445,6 +442,23 @@ renderTable();
 }
 
   
+
+  async function createClass(){
+    const className = byId('className').value.trim();
+    if(!className){ alert('Enter a class name'); return; }
+    const prefix = byId('idPrefix').value.trim();
+    if(!prefix){ alert('Enter a Student ID Prefix (e.g., G2_)'); return; }
+    try{
+      const b = writeBatch(db);
+      b.set(doc(db,'classes',className), { idPrefix: prefix, createdAt: Date.now() }, { merge:true });
+      await b.commit();
+      log(`Class "${className}" created/updated.`);
+      await loadClass();
+    }catch(e){
+      log(`Create class failed: ${e.code||'error'} - ${e.message||e}`);
+      alert('Create class failed. Check rules and auth.');
+    }
+  }
 
   async function saveChanges(){
     if(!currentClass){ alert("Load a class first."); return; }
@@ -500,7 +514,34 @@ const batch = writeBatch(db);
   function discardChanges(){ loadClass(); }
 
   // ===== CSV Import (Step 4) =====
-  function parseFileToNames(text){
+  function parseCSV(text){
+  const normalized = (text || '').replace(/
+?/g, '
+');
+  const lines = normalized.split('
+').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const first = lines[0];
+  const headerish = /id|name|points/i.test(first) && first.includes(',');
+  const rows = headerish ? lines.slice(1) : lines;
+  const headers = headerish ? first.split(',').map(h=>h.trim().toLowerCase()) : [];
+  return rows.map(l => {
+    const cols = l.split(',');
+    const pick = (key, fallbackIndex) => {
+      if (headerish) {
+        const idx = headers.indexOf(key);
+        return idx >= 0 ? (cols[idx] || '').trim() : '';
+      }
+      return (cols[fallbackIndex] || '').trim();
+    };
+    const name = headerish ? pick('name', 0) : pick('', 0);
+    const id = headerish ? pick('id', 2) : '';
+    const points = headerish ? pick('points', 1) : pick('', 1);
+    return { id, name, points };
+  }).filter(r => r.name || r.id);
+}
+
+function parseFileToNames(text){
     const normalized = (text || '').replace(/\r\n?/g, '\n');
     return normalized
       .split('\n')
@@ -516,14 +557,14 @@ const batch = writeBatch(db);
     const f=byId("file");
     if(!f.files||!f.files.length){ alert("Choose a CSV/TXT file."); return; }
     const text=await f.files[0].text();
-    const names=parseFileToNames(text);
-    if(!names.length){ alert("No names detected in file."); return; }
+    const rowsCsv = parseCSV(text);
+    if(!rowsCsv.length){ alert("No rows detected in file."); return; }
     const pref=byId("idPrefix").value.trim();
     if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
     let idx=1; const used=new Set(rows.map(r=>r.id));
     const nextId=()=>{ let id; do { id=`${pref}${String(idx++).padStart(4,"0")}`; } while(used.has(id)); used.add(id); return id; };
-    const plan = names.map(name=>({ id: nextId(), name }));
-    log(`Dry Run: ${plan.length} to add`);
+    const plan = rowsCsv.map(r=>({ id: (r.id&&r.id.trim())? r.id.trim(): nextId(), name: r.name, points: Math.max(0, Math.trunc(Number(r.points||0)||0) ) }));
+    log(`Dry Run: ${plan.length} to add/merge`);
     byId("btnImportCommit").disabled=false;
     byId("btnImportCommit")._plan=plan;
   }
@@ -585,6 +626,7 @@ const batch = writeBatch(db);
   });
 
   byId('btnLoad').addEventListener('click', () => loadClass());
+  byId('btnCreate').addEventListener('click', createClass);
 
   
 
