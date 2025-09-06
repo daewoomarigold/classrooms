@@ -602,8 +602,8 @@ if(!idPrefixTouched && !byId("idPrefix").value){
     log("students listen:", err.code || err.message)
   );
 }
-  async function createClass(){
-    const className = byId('className').value.trim();
+  async function createClass(nameArg){
+    const className = (nameArg ? String(nameArg) : byId('className').value).trim();
     if(!className){ alert('Enter a class name'); return; }
     const prefix = byId('idPrefix').value.trim();
     if(!prefix){ alert('Enter a Student ID Prefix (e.g., G2_)'); return; }
@@ -938,14 +938,23 @@ async function createClassFromModal(){
   if (!newName) { alert('Please enter a class name.'); return; }
 
   // Set selection and suggest prefix if empty
-  if (sel) sel.value = newName;
+  if (sel) {
+  // If option doesn't exist yet, add it so .value will stick
+  let opt = Array.from(sel.options).find(o => o.value === newName);
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = newName; opt.textContent = newName;
+    sel.appendChild(opt);
+  }
+  sel.value = newName;
+}
   if (prefixEl && !prefixEl.value.trim()){
     const pick = guessPrefixFromClassName(newName);
     if (pick) prefixEl.value = pick;
   }
 
   try {
-    await createClass(); // uses className + idPrefix inputs
+    await createClass(newName); // pass explicit name so we don't depend on <select> value
     closeCreateClassModal();
   } catch(e){
     // createClass itself logs and alerts; keep modal open for correction
