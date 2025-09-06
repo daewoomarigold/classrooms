@@ -151,6 +151,55 @@
   let rows = [];
   let staged = { add:new Map(), edit:new Map(), del:new Map() };
 
+  // === Undo/Redo state ===
+  let history = [];
+  let future  = [];
+
+  function deepCloneState() {
+    return {
+      rows: JSON.parse(JSON.stringify(rows)),
+      staged: {
+        add: new Map(staged.add),
+        edit: new Map(staged.edit),
+        del: new Map(staged.del),
+      }
+    };
+  }
+
+  function restoreState(snapshot) {
+    rows = snapshot.rows;
+    staged = {
+      add: new Map(snapshot.staged.add),
+      edit: new Map(snapshot.staged.edit),
+      del: new Map(snapshot.staged.del),
+    };
+    renderTable();
+    const dirty = staged.add.size || staged.edit.size || staged.del.size;
+    byId("btnSave").disabled    = !dirty;
+    byId("btnDiscard").disabled = !dirty;
+  }
+
+  function pushHistory(label) {
+    history.push({ label, snapshot: deepCloneState() });
+    future = [];
+  }
+
+  function undo() {
+    if (!history.length) return;
+    const current = deepCloneState();
+    const { snapshot } = history.pop();
+    future.push(current);
+    restoreState(snapshot);
+  }
+
+  function redo() {
+    if (!future.length) return;
+    const current = deepCloneState();
+    const next = future.pop();
+    history.push({ label: "redo", snapshot: current });
+    restoreState(next);
+  }
+
   const int = (n) => Math.max(0, Math.trunc(Number(n)||0));
 
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
@@ -198,10 +247,11 @@
     });
   }
 
-  function toggleDelete(idx){ const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
-  function adjustPoints(idx,delta){ const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
+  function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
+  function adjustPoints(idx,delta){ pushHistory('adjustPoints'); const r=rows[idx]; if(r._state==="del") return; const next=int((r.points||0)+delta); rows[idx].points=next; staged.edit.set(r.id,{ ...(staged.edit.get(r.id)||{}), points:next }); setDirty(); renderTable(); }
 
   function markEdit(idx, patch) {
+    pushHistory('markEdit');
     const r = rows[idx];
     if (r._state === "del") return;
 
@@ -246,6 +296,7 @@
 
   // Step 1 — replaced addRow() with autofocus and Enter-to-blur on the name field
   function addRow(){
+    pushHistory('addRow');
     const id = `${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`;
     const r = { id, name:"", points:0, _state:"add" };
     rows.push(r);
@@ -292,6 +343,8 @@
       });
       renderTable();
       log(`Loaded ${rows.length} students for ${className}`);
+      history = [];
+      future  = [];
     };
     if(live){
       unsubscribe = onSnapshot(query(coll),processSnap,(err)=>log("students listen:", err.code||err.message));
@@ -339,6 +392,9 @@ const batch = writeBatch(db);
       rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
       staged = { add:new Map(), edit:new Map(), del:new Map() };
       byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; renderTable();
+      // reset undo/redo history after successful save
+      history = [];
+      future  = [];
     } catch(e){
       const code = e && e.code ? e.code : 'unknown';
       const msg = e && e.message ? e.message : String(e);
@@ -465,6 +521,25 @@ const batch = writeBatch(db);
   // Bind import buttons
   byId("btnImportDry").addEventListener("click", importDry);
   byId("btnImportCommit").addEventListener("click", importCommit);
+
+  // === Keyboard shortcuts: Undo/Redo ===
+  document.addEventListener('keydown', (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+
+    // Allow Z even inside inputs; ignore other keys while typing
+    if (['TEXTAREA','INPUT'].includes((e.target.tagName || '').toUpperCase()) &&
+        e.target.type !== 'checkbox' &&
+        e.key.toLowerCase() !== 'z') {
+      return;
+    }
+
+    if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      e.preventDefault(); undo();
+    } else if ((e.key.toLowerCase() === 'z') && e.shiftKey) {
+      e.preventDefault(); redo();
+    }
+  });
 
   // Observe auth state
   onAuthStateChanged(auth, (user) => {
