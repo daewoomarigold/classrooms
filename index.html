@@ -124,6 +124,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     <h2 id="classTitle" style="margin:0;font-size:16px;color:var(--text)">Class: —</h2>
   </div>
   <div style="display:flex;gap:8px">
+    <button class="btn" id="btnRenameClass" title="Rename Firestore doc id">🏷️</button>
     <button class="btn" id="btnEditClass" title="Edit class display name">✏️</button>
     <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
   </div>
@@ -149,7 +150,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, writeBatch, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, doc, writeBatch, collection, getDocs, getDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -438,6 +439,80 @@ function revertRow(idx){
       }
     }, 0);
   }
+// Rename a class by copying to a new doc id, then optionally deleting the old one.
+async function renameClassDoc(oldId, newId, { deleteOld = false } = {}) {
+  if (!oldId || !newId) { alert("Both old and new class names are required."); return; }
+  if (oldId === newId) { alert("New class name must be different."); return; }
+  if (/[\/#?[\]]/.test(newId)) { alert("Invalid characters in class name."); return; }
+
+  // If destination exists already, bail.
+  const destRef = doc(db, "classes", newId);
+  const destSnap = await getDoc(destRef);
+  if (destSnap.exists()) { alert(`A class named "${newId}" already exists.`); return; }
+
+  log(`Renaming class: ${oldId} → ${newId} (copying docs)…`);
+
+  // 1) Copy class-level metadata (merge stagedClass if present)
+  const srcRef = doc(db, "classes", oldId);
+  const srcSnap = await getDoc(srcRef);
+  const baseMeta = srcSnap.exists() ? srcSnap.data() : {};
+  const mergedMeta = {
+    ...baseMeta,
+    ...(stagedClass || {}),              // keep any staged displayName/idPrefix if you want them on the new class
+    displayName: (stagedClass && stagedClass.displayName) || baseMeta.displayName || newId,
+    updatedAt: Date.now(),
+    createdFrom: oldId,
+  };
+
+  let batch = writeBatch(db);
+  let ops = 0;
+  const commitIfFull = async () => { if (ops && ops % 400 === 0) { await batch.commit(); batch = writeBatch(db); } };
+
+  batch.set(destRef, mergedMeta, { merge: true }); ops++;
+
+  // 2) Copy all students
+  const studentsSnap = await getDocs(collection(db, "classes", oldId, "students"));
+  studentsSnap.forEach(d => {
+    batch.set(doc(db, "classes", newId, "students", d.id), d.data(), { merge: true });
+    ops++;
+  });
+  await commitIfFull();
+  await batch.commit();
+
+  log(`Copied ${studentsSnap.size} students to "${newId}".`);
+
+  // 3) Optionally delete the old class (students first, then doc)
+  if (deleteOld) {
+    log(`Deleting old class "${oldId}"…`);
+    const delBatchSize = 400;
+    let delBatch = writeBatch(db);
+    let delOps = 0;
+
+    // delete students
+    const again = await getDocs(collection(db, "classes", oldId, "students"));
+    again.forEach(d => {
+      delBatch.delete(doc(db, "classes", oldId, "students", d.id));
+      if (++delOps % delBatchSize === 0) { delBatch.commit(); delBatch = writeBatch(db); }
+    });
+    await delBatch.commit();
+
+    // delete class doc
+    const finalBatch = writeBatch(db);
+    finalBatch.delete(srcRef);
+    await finalBatch.commit();
+
+    log(`Old class "${oldId}" deleted.`);
+  }
+
+  // 4) Switch UI to the new class
+  currentClass = newId;
+  byId("className").value = newId;
+  staged = { add:new Map(), edit:new Map(), del:new Map() };
+  stagedClass = null;
+  history = []; future = [];
+  await loadClass(); // this will attach listeners to the new class
+  updateDirtyButtons();
+}
 
   async function loadClass(){
   const className = byId("className").value.trim();
@@ -793,6 +868,20 @@ function parseRoster(text){
       signOutBtn.disabled = true;
     }
   }
+byId('btnRenameClass').addEventListener('click', async () => {
+  if (!currentClass) { alert("Load a class first."); return; }
+  const suggestion = (classMeta && classMeta.displayName) ? classMeta.displayName : currentClass;
+  const newId = prompt("New Firestore class name (document id):", suggestion);
+  if (newId == null) return;
+
+  const confirmDelete = confirm("Copy to the new class and delete the old one afterwards?\nChoose OK to move (delete old), or Cancel to keep both.");
+  try {
+    await renameClassDoc(currentClass, newId.trim(), { deleteOld: confirmDelete });
+  } catch (e) {
+    log(`Rename failed: ${e.code || 'error'} - ${e.message || e}`);
+    alert("Rename failed. See Change Log for details.");
+  }
+});
 
   byId('btnSignIn').addEventListener('click', async () => {
     try{
