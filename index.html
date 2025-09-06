@@ -235,9 +235,9 @@ function guessPrefixFromClassName(name){
       del: new Map(snapshot.staged.del),
     };
     renderTable();
-    const dirty = staged.add.size || staged.edit.size || staged.del.size;
-    byId("btnSave").disabled    = !dirty;
-    byId("btnDiscard").disabled = !dirty;
+    cconst dirty = staged.add.size || staged.edit.size || staged.del.size || !!stagedClass;
+byId("btnSave").disabled    = !dirty;
+byId("btnDiscard").disabled = !dirty;
   }
 
   function pushHistory(label) {
@@ -265,15 +265,19 @@ function guessPrefixFromClassName(name){
 
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
 
-  function setDirty(){ byId("btnSave").disabled=false; byId("btnDiscard").disabled=false; }
+  function setDirty(){
+  updateDirtyButtons(); // counts class-title edits too
+}
   function resetState(){
-  rows=[];
-  staged={ add:new Map(), edit:new Map(), del:new Map() };
-  stagedClass = null;
+  rows = [];
+  staged = { add:new Map(), edit:new Map(), del:new Map() };
+  stagedClass = null;                   // NEW: clear class-title staging
   renderTable();
-  byId("btnSave").disabled=true; byId("btnDiscard").disabled=true;
+  if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+  updateDirtyButtons();                 // NEW: centralize buttons state
   log("--- state cleared ---");
 }
+
 
   function renderTable(){
     tbl.innerHTML = "";
@@ -559,6 +563,9 @@ if (classCount) {
 }
 
       await batch.commit();
+      stagedClass = null;                     // NEW: class meta is now saved
+if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+updateDirtyButtons();                   // keep buttons in sync
       log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size} class=${classCount}`);
       rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
       staged = { add:new Map(), edit:new Map(), del:new Map() };
