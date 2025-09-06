@@ -539,7 +539,9 @@ const batch = writeBatch(db);
   if (!staged.add.has(id)) {
     const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
     const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
-    const total = (patch.points !== undefined) ? int(patch.points) : int(existing.points || 0);
+    cconst classCount = stagedClass ? 1 : 0;
+const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
+if (!total) { log("No changes to save."); return; }
     const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
 
     // Always write a complete, rules-compliant fragment
@@ -552,11 +554,12 @@ const batch = writeBatch(db);
 });
       const total = staged.del.size + staged.add.size + staged.edit.size; if(!total){ log("No changes to save."); return; }
       // Save class metadata if staged
-if (stagedClass) {
+if (classCount) {
   batch.set(doc(db, "classes", currentClass), stagedClass, { merge: true });
 }
+
       await batch.commit();
-      log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size}`);
+      log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size} class=${classCount}`);
       rows = rows.filter(r=>r._state!=="del").map(r=>({ id:r.id, name:r.name, points:int(r.points) }));
       staged = { add:new Map(), edit:new Map(), del:new Map() };
       byId("btnSave").disabled=true; byId("btnDiscard").disabled=true; renderTable();
