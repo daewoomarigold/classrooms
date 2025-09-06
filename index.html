@@ -139,8 +139,8 @@
 
   const $ = s => document.querySelector(s);
   const byId = id => document.getElementById(id);
-  const log = (...a) => { const el = byId("log"); el.textContent += a.join(" ") + "
-"; el.scrollTop = el.scrollHeight; };
+  const log = (...a) => { const el = byId("log"); el.textContent += a.join(" ") + "\n";
+  el.scrollTop = el.scrollHeight; };
   const tbl = $("#table tbody");
 
   let currentClass = "";
@@ -247,12 +247,13 @@
 
   // ===== CSV Import (Step 4) =====
   function parseFileToNames(text){
-    const clean = (text || "").replace(/
-?/g, "
-");
-    return clean.split("
-").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",")[0].trim()).filter(Boolean);
-  }
+  const clean = (text || "").replace(/\r\n?/g, "\n");
+  return clean.split("\n")
+    .map(l=>l.trim()).filter(Boolean)
+    .map(l=>l.split(",")[0].trim())
+    .filter(Boolean);
+}
+
 
   async function importDry(){
     if(!currentClass){ alert("Load a class first."); return; }
@@ -342,10 +343,9 @@
   byId('btnDiscard').addEventListener('click', discardChanges);
 
   byId('btnExport').addEventListener('click', () => {
-    const header = 'id,name,points
-';
-    const lines = rows.map(r => `${r.id},${(r.name||'').replace(/,/g,' ')},${int(r.points||0)}`).join('
-');
+    const header = 'id,name,points\n';
+const lines = rows.map(r => `${r.id},${(r.name||'').replace(/,/g,' ')},${int(r.points||0)}`).join('\n');
+
     const blob = new Blob([header + lines], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
