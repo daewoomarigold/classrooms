@@ -407,20 +407,10 @@
   byId('btnDiscard').addEventListener('click', discardChanges);
 
   byId('btnExport').addEventListener('click', () => {
-    const header = 'id,name,points
-';
+    const header = 'id,name,points\n';
     const lines = rows
       .map(r => `${r.id},${(r.name||'').replace(/,/g,' ')},${int(r.points||0)}`)
-      .join('
-');
-
-    const blob = new Blob([header + lines], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${currentClass || 'class'}-students.csv`;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
-  });
+      .join('\n');
 
     const blob = new Blob([header + lines], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
