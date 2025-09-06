@@ -252,13 +252,15 @@
     const coll = collection(db,"classes",className,"students");
     const processSnap = (snap) => {
       rows=[];
-      snap.forEach(d=>{
-        const data = d.data();
-        rows.push({ id:d.id, name:data.name||"", points:(data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0 });
-      });
-      renderTable();
-      log(`Loaded ${rows.length} students for ${className}`);
-    };
+snap.forEach(d=>{
+  const data = d.data();
+  rows.push({
+    id: d.id,
+    name: data.name || "",
+    points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+    daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily) : 0
+  });
+});
     if(live){
       unsubscribe = onSnapshot(query(coll),processSnap,(err)=>log("students listen:", err.code||err.message));
     } else {
@@ -271,8 +273,9 @@
     if(!isSignedIn()){ alert("Sign in to save changes."); return; }
     try{
       const uid = auth.currentUser && auth.currentUser.uid;
-      log(`Saving as uid=${uid || 'unknown'}`);
-      const batch = writeBatch(db);
+const email = (auth.currentUser && auth.currentUser.email) || '(no email)';
+log(`Saving as uid=${uid || 'unknown'} email=${email}`);
+const batch = writeBatch(db);
       staged.del.forEach((_,id)=>batch.delete(doc(db,"classes",currentClass,"students",id)));
       staged.add.forEach((data,id)=>batch.set(
         doc(db,"classes",currentClass,"students",id),
@@ -283,14 +286,21 @@
         },
         { merge: true }
       ));
-      staged.edit.forEach((patch,id)=>{
-        if(!staged.add.has(id)){
-          const updateData={};
-          if(patch.name!==undefined) updateData.name=patch.name;
-          if(patch.points!==undefined) updateData["points.total"] = int(patch.points);
-          batch.set(doc(db,"classes",currentClass,"students",id),updateData,{ merge:true });
-        }
-      });
+      staged.edit.forEach((patch, id) => {
+  if (!staged.add.has(id)) {
+    const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
+    const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
+    const total = (patch.points !== undefined) ? int(patch.points) : int(existing.points || 0);
+    const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
+
+    // Always write a complete, rules-compliant fragment
+    batch.set(
+      doc(db, "classes", currentClass, "students", id),
+      { id, name, points: { daily, total } },
+      { merge: true }
+    );
+  }
+});
       const total = staged.del.size + staged.add.size + staged.edit.size; if(!total){ log("No changes to save."); return; }
       await batch.commit();
       log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size}`);
