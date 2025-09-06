@@ -123,8 +123,8 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, writeBatch, setDoc, serverTimestamp, collection, getDocs, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, writeBatch, collection, getDocs, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -139,7 +139,8 @@
 
   const $ = s => document.querySelector(s);
   const byId = id => document.getElementById(id);
-  const log = (...a) => { const el = byId("log"); el.textContent += a.join(" ") + "\n"; el.scrollTop = el.scrollHeight; };
+  const log = (...a) => { const el = byId("log"); el.textContent += a.join(" ") + "
+"; el.scrollTop = el.scrollHeight; };
   const tbl = $("#table tbody");
 
   let currentClass = "";
@@ -246,14 +247,11 @@
 
   // ===== CSV Import (Step 4) =====
   function parseFileToNames(text){
-    // normalize newlines (\r\n or \r -> \n) and split, then take the first comma-separated field per line
-    const clean = (text || "").replace(/\r\n?/g, "\n");
-    return clean
-      .split("\n")
-      .map(l=>l.trim())
-      .filter(Boolean)
-      .map(l=>l.split(",")[0].trim())
-      .filter(Boolean);
+    const clean = (text || "").replace(/
+?/g, "
+");
+    return clean.split("
+").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",")[0].trim()).filter(Boolean);
   }
 
   async function importDry(){
@@ -294,9 +292,77 @@
     loadClass({ live:!!unsubscribe });
   }
 
+  // ===== Button wiring =====
+  function updateAuthUI(user){
+    const status = byId('authStatus');
+    const textEl = byId('authText');
+    const signInBtn = byId('btnSignIn');
+    const signOutBtn = byId('btnSignOut');
+    if(user){
+      status.classList.remove('signedout');
+      status.classList.add('signedin');
+      textEl.textContent = `Signed in as ${user.displayName || user.email || 'User'}`;
+      signInBtn.disabled = true;
+      signOutBtn.disabled = false;
+    } else {
+      status.classList.remove('signedin');
+      status.classList.add('signedout');
+      textEl.textContent = 'Signed out';
+      signInBtn.disabled = false;
+      signOutBtn.disabled = true;
+    }
+  }
+
+  byId('btnSignIn').addEventListener('click', async () => {
+    try{
+      await signInWithPopup(auth, provider);
+      log('Sign-in popup completed.');
+    }catch(e){
+      log('Sign-in error:', e.code || e.message);
+      alert(`Sign-in failed: ${e.code || e.message}`);
+    }
+  });
+
+  byId('btnSignOut').addEventListener('click', async () => {
+    try{ await signOut(auth); log('Signed out.'); }
+    catch(e){ log('Sign-out error:', e.code || e.message); }
+  });
+
+  byId('btnLoad').addEventListener('click', () => loadClass({ live:false }));
+
+  let liveMode = false;
+  byId('btnListen').addEventListener('click', () => {
+    liveMode = !liveMode;
+    byId('btnListen').textContent = `Live Listen: ${liveMode ? 'On' : 'Off'}`;
+    loadClass({ live: liveMode });
+  });
+
+  byId('btnAdd').addEventListener('click', addRow);
+  byId('btnSave').addEventListener('click', () => { void saveChanges(); });
+  byId('btnDiscard').addEventListener('click', discardChanges);
+
+  byId('btnExport').addEventListener('click', () => {
+    const header = 'id,name,points
+';
+    const lines = rows.map(r => `${r.id},${(r.name||'').replace(/,/g,' ')},${int(r.points||0)}`).join('
+');
+    const blob = new Blob([header + lines], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${currentClass || 'class'}-students.csv`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  });
+
   // Bind import buttons
   byId("btnImportDry").addEventListener("click", importDry);
   byId("btnImportCommit").addEventListener("click", importCommit);
+
+  // Observe auth state
+  onAuthStateChanged(auth, (user) => {
+    updateAuthUI(user);
+    if(user){ log('Auth state: signed in'); } else { log('Auth state: signed out'); }
+  });
 
 </script>
 </body>
