@@ -133,7 +133,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   </div>
   <div style="display:flex;gap:8px">
     <button class="btn" id="btnRenameClass" title="Rename Firestore doc id">🏷️</button>
-    <button class="btn" id="btnEditClass" title="Edit class display name">✏️</button>
+    <button class="btn" id="btnDeleteClass" title="Delete class">🗑️</button>
     <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
   </div>
 </div>
@@ -170,7 +170,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -962,7 +962,85 @@ async function createClassFromModal(){
   }
 }
 
+async function deleteClassDoc(classId){
+  if (!classId) return;
+  // delete all students in batches, then delete class doc
+  const base = ['classes', classId, 'students'];
+  const batchSize = 400;
+
+  // Delete students
+  const studentsSnap = await getDocs(collection(db, ...base));
+  let bat = writeBatch(db);
+  let ops = 0;
+  studentsSnap.forEach(d => {
+    bat.delete(doc(db, ...base, d.id));
+    ops++;
+    if (ops % batchSize === 0) { bat.commit(); bat = writeBatch(db); }
+  });
+  await bat.commit();
+
+  // Delete class document
+  const classRef = doc(db, 'classes', classId);
+  const finalBatch = writeBatch(db);
+  finalBatch.delete(classRef);
+  await finalBatch.commit();
+
+  log(`Class "${classId}" deleted.`);
+
+  // Reset UI selection/state
+  const sel = byId('className');
+  if (sel && sel.value === classId) {
+    sel.selectedIndex = 0; // back to placeholder
+  }
+  currentClass = "";
+  resetState();
+}
+
+// Wire delete button with confirmation
+byId('btnDeleteClass').addEventListener('click', async () => {
+  if (!currentClass) { alert("Load a class first."); return; }
+  const ok = confirm(`Are you sure you want to DELETE the class "${currentClass}" and all its students? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await deleteClassDoc(currentClass);
+  } catch(e){
+    log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) or e}`);
+    alert("Delete failed. See Change Log for details.");
+  }
+});
+
+  
+async function deleteClass(){
+  if (!currentClass) { alert("Load a class first."); return; }
+  const ok = confirm(`Are you sure you want to delete class "${currentClass}"? This cannot be undone.`);
+  if (!ok) return;
+
+  try {
+    const studentsSnap = await getDocs(collection(db, "classes", currentClass, "students"));
+    let batch = writeBatch(db);
+    let ops = 0;
+    for (const d of studentsSnap.docs) {
+      batch.delete(doc(db, "classes", currentClass, "students", d.id));
+      if (++ops % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+    }
+    await batch.commit();
+
+    await deleteDoc(doc(db, "classes", currentClass));
+
+    log(`Class "${currentClass}" deleted.`);
+    currentClass = "";
+    resetState();
+    startClassesListener();
+    byId("classTitle").textContent = "Class: —";
+    byId("className").selectedIndex = 0;
+  } catch(e){
+    log(`Delete failed: ${e.code || 'error'} - ${e.message || e}`);
+    alert("Delete failed. See Change Log for details.");
+  }
+}
+
   // ===== Button wiring =====
+byId('btnDeleteClass').addEventListener('click', deleteClass);
   function updateAuthUI(user){
     const status = byId('authStatus');
     const textEl = byId('authText');
@@ -1031,30 +1109,7 @@ byId('btnAdd').addEventListener('click', addRow);
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
   });
-// === Class display name: edit + revert ===
-byId('btnEditClass').addEventListener('click', () => {
-  const current = classMeta.displayName || currentClass;
-  const next = prompt('Edit class display name:', current);
-  if (next == null) return; // cancelled
-  const trimmed = next.trim();
-  if (!trimmed) return;
-
-  classMeta.displayName = trimmed;
-  stagedClass = { ...(stagedClass || {}), displayName: trimmed };
-
-  byId('classTitle').textContent = trimmed;
-  byId('btnRevertClass').disabled = false;
-  setDirty();
-});
-
-byId('btnRevertClass').addEventListener('click', () => {
-  if (!classMetaBaseline) return;
-  classMeta = { ...classMetaBaseline };
-  stagedClass = null;
-
-  byId('classTitle').textContent = classMeta.displayName || currentClass;
-
-  updateDirtyButtons();
+// === Class deletion ===
 byId('btnRevertClass').disabled = true;
 
 });
