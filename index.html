@@ -910,6 +910,48 @@ function startClassesListener(){
   );
 }
 
+  
+// ===== Simple Create-Class Modal helpers =====
+function openCreateClassModal(){
+  const m = byId('createClassModal');
+  if (!m) return;
+  m.classList.add('open');
+  m.setAttribute('aria-hidden','false');
+  const input = byId('newClassName');
+  if (input) setTimeout(()=>input.focus(), 0);
+}
+function closeCreateClassModal(){
+  const m = byId('createClassModal');
+  if (!m) return;
+  m.classList.remove('open');
+  m.setAttribute('aria-hidden','true');
+}
+async function createClassFromModal(){
+  const nameEl = byId('newClassName');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (!name){ alert('Enter a class name'); return; }
+
+  // derive or reuse a prefix
+  const existing = byId('idPrefix').value.trim();
+  const prefix = existing || guessPrefixFromClassName(name) || 'G1_';
+
+  try{
+    const b = writeBatch(db);
+    b.set(doc(db, 'classes', name), { displayName: name, idPrefix: prefix, createdAt: Date.now() }, { merge: true });
+    await b.commit();
+    log(`Class "${name}" created.`);
+
+    // switch UI to new class
+    const sel = byId('className');
+    if (sel) sel.value = name;
+    closeCreateClassModal();
+    await loadClass();
+  }catch(e){
+    log(`Create class failed: ${e.code||'error'} - ${e.message||e}`);
+    alert('Create class failed. Check rules and auth.');
+  }
+}
+
   // ===== Button wiring =====
   function updateAuthUI(user){
     const status = byId('authStatus');
@@ -961,7 +1003,7 @@ byId('btnRenameClass').addEventListener('click', async () => {
   });
 
   byId('btnLoad').addEventListener('click', () => loadClass());
-  byId('btnCreate').addEventListener('click', createClass);
+  byId('btnCreate').addEventListener('click', openCreateClassModal);
 
   
 
@@ -1031,8 +1073,6 @@ byId('btnDeleteClass').addEventListener('click', async () => {
 });
 byId('btnRevertClass').disabled = true;
 
-});
-byId('btnCreateClass').addEventListener('click', openCreateClassModal);
 byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
 byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
 
