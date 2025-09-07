@@ -587,20 +587,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     );
   }
 
-  async function createClass(){ openCreateClassModal(); }
-    const prefix = byId('idPrefix').value.trim();
-    if(!prefix){ alert('Enter a Student ID Prefix (e.g., G2_)'); return; }
-    try{
-      const b = writeBatch(db);
-      b.set(doc(db,'classes',className), { idPrefix: prefix, createdAt: Date.now() }, { merge:true });
-      await b.commit();
-      log(`Class "${className}" created/updated.`);
-      await loadClass();
-    }catch(e){
-      log(`Create class failed: ${e.code||'error'} - ${e.message||e}`);
-      alert('Create class failed. Check rules and auth.');
-    }
-  }
+  async function createClass(){
+  openCreateClassModal();
+}
+
 
   
   async function saveChanges(){
