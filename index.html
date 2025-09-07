@@ -87,10 +87,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <div class="toolbar" style="margin-top:10px">
 <!-- REPLACE the entire toolbar that sits under Class Name / Prefix with this -->
 <div class="toolbar" style="margin-top:10px">
-  <button id="btnLoad" class="btn primary">Load Class</button>
   <button id="btnCreate" class="btn">Create Class</button>
   <button id="btnExport" class="btn">Export CSV</button>
 </div>
+
 
 </div>
 
@@ -986,6 +986,10 @@ byId('btnRenameClass').addEventListener('click', async () => {
     alert("Rename failed. See Change Log for details.");
   }
 });
+byId('className').addEventListener('change', () => {
+  const val = byId('className').value;
+  if (val) { void loadClass(); }
+});
 
   byId('btnSignIn').addEventListener('click', async () => {
     try{
@@ -1002,11 +1006,7 @@ byId('btnRenameClass').addEventListener('click', async () => {
     catch(e){ log('Sign-out error:', e.code || e.message); }
   });
 
-  byId('btnLoad').addEventListener('click', () => loadClass());
-  byId('btnCreate').addEventListener('click', openCreateClassModal);
-
-  
-
+ byId('btnCreate').addEventListener('click', openCreateClassModal);
   byId('btnAdd').addEventListener('click', addRow);
   byId('btnSave').addEventListener('click', () => { void saveChanges(); });
   byId('btnDiscard').addEventListener('click', discardChanges);
