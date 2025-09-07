@@ -77,10 +77,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   <option value="" disabled selected>— Select a class —</option>
 </select>
 </div>
-<div>
-<label>Student ID Prefix</label>
-<input id="idPrefix" type="text" placeholder="G5_" />
-</div>
 </div>
 
 
@@ -217,9 +213,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
       }
     };
   }
-  // === Prefix autofill state ===
-  let idPrefixTouched = false;
-
   function mostCommon(arr){
     const m = new Map();
     for (const v of arr) m.set(v, (m.get(v) || 0) + 1);
@@ -433,7 +426,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   // Step 1 — replaced addRow() with autofocus and Enter-to-blur on the name field
   function addRow(){
     pushHistory('addRow');
-    const id = `${byId("idPrefix").value.trim()}${String(rows.length+1).padStart(4,"0")}`;
+    const id = `${(classMeta && classMeta.idPrefix) ? classMeta.idPrefix : ""}${String(rows.length+1).padStart(4,"0")}`;
     const r = { id, name:"", points:0, _state:"add" };
     rows.push(r);
     staged.add.set(id,{ id, name:"", points:0 });
@@ -584,14 +577,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
       updateDirtyButtons();
 
-      // (Optional) prefix guess from rows if teacher hasn't touched it and doc didn't provide
-      if(!idPrefixTouched && !byId("idPrefix").value){
-        const byRows = guessPrefixFromRows(rows) || "";
-        const byName = guessPrefixFromClassName(className) || "";
-        const pick = byRows || byName;
-        if (pick) byId("idPrefix").value = pick;
-      }
-
+      
       log(`Loaded ${rows.length} students for ${className}`);
       history = []; future = [];
     };
@@ -601,9 +587,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     );
   }
 
-  async function createClass(){
-    const className = byId('className').value.trim();
-    if(!className){ alert('Enter a class name'); return; }
+  async function createClass(){ openCreateClassModal(); }
     const prefix = byId('idPrefix').value.trim();
     if(!prefix){ alert('Enter a Student ID Prefix (e.g., G2_)'); return; }
     try{
@@ -806,7 +790,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     const rowsCsv = parseRoster(text);
     if(!rowsCsv.length){ alert("No rows detected in file."); return; }
 
-    const pref = byId("idPrefix").value.trim();
+    const pref = (classMeta && classMeta.idPrefix ? String(classMeta.idPrefix) : "").trim();
     if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
 
     // Track used IDs to avoid collisions with existing rows
@@ -934,17 +918,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     m.classList.add('open');
     m.setAttribute('aria-hidden','false');
 
-    // Prefill: use current page prefix or a guess from the (empty) name
     const prefEl = byId('newClassPrefix');
-    const nameEl = byId('newClassName');
-    if (prefEl) {
-      const existing = (byId('idPrefix')?.value || '').trim();
-      prefEl.value = existing || '';
-    }
-    if (nameEl) {
-      nameEl.value = '';
-      setTimeout(()=>nameEl.focus(), 0);
-    }
+const nameEl = byId('newClassName');
+if (prefEl) { prefEl.value = ''; }
+if (nameEl) { nameEl.value = ''; setTimeout(()=>nameEl.focus(), 0); }
 
     // Initial suggest (if any) + validate
     suggestPrefixFromNameOnce();
@@ -1124,14 +1101,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   byId("btnImportDry").addEventListener("click", importDry);
   byId("btnImportCommit").addEventListener("click", importCommit);
 
-  // Don't overwrite a user-typed prefix
-  byId('idPrefix').addEventListener('input', () => { idPrefixTouched = true; });
-
-  // Suggest prefix while typing class name—only if user hasn't touched prefix
-  byId('className').addEventListener('input', () => {
-    if (idPrefixTouched) return;
-    const pick = guessPrefixFromClassName(byId('className').value.trim());
-    if (pick) byId('idPrefix').value = pick;
+      if (pick) byId('idPrefix').value = pick;
   });
 
 
