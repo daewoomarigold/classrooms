@@ -151,18 +151,21 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <tbody></tbody>
 </table>
 </div>
-  <!-- Create Class Modal -->
+<!-- Create Class Modal -->
 <div id="createClassModal" class="modal" aria-hidden="true">
   <div class="dialog">
     <h3>Create Class</h3>
     <label>New class name</label>
     <input id="newClassName" type="text" placeholder="e.g., Marigold Grade 1" />
+    <label style="margin-top:8px">Student ID Prefix</label>
+    <input id="newClassPrefix" type="text" placeholder="e.g., G2_" />
     <div class="actions">
       <button class="btn" id="btnCreateCancel">Exit</button>
-      <button class="btn primary" id="btnCreateConfirm">Create</button>
+      <button class="btn primary" id="btnCreateConfirm" disabled>Create</button>
     </div>
   </div>
 </div>
+
 </section>
 </main>
 
