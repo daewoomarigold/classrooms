@@ -317,16 +317,14 @@ let cooldownId = null; // classes/{classId}.classState.recentWinners[0] if prese
 
   const total = weights.reduce((a,b)=>a+b,0) || 1;
   return weights.map(w => (w/total)*100);
-});
-    const total = weights.reduce((a,b)=>a+b,0) || 1;
-    return weights.map(w => (w/total)*100);
-  }
+}
 
 
   function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({
     "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
-  }
+  }[m]));
+}
 
 
 function cooldownBadgeFor(id){
@@ -334,10 +332,6 @@ function cooldownBadgeFor(id){
     ? '<span class="chip" title="Spinner cooldown">cooldown</span>'
     : '';
 }
-
-[m]));
-}
-
   function setDirty(){
     updateDirtyButtons(); // counts class-title edits too
   }
