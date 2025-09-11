@@ -298,7 +298,12 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   }
 
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"\']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }[m])); }
+  function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])
+  );
+}
+
 
   function setDirty(){
     updateDirtyButtons(); // counts class-title edits too
