@@ -53,6 +53,13 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 .modal .dialog{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .modal h3{margin:0 0 8px;font-size:16px}
 .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+.pity-cell{min-width:180px}
+.meter{position:relative;height:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-bottom:4px}
+.meter .fill{height:100%;background:linear-gradient(90deg,#3b82f6,#22c55e)}
+.pity-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+.pity-row .pct{font-variant-numeric:tabular-nums}
+.btnResetPity{margin-left:6px;border-color:#334155}
 </style>
 </head>
 <body>
@@ -136,6 +143,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <th style="width:200px">Student ID</th>
 <th>Name</th>
 <th style="width:120px">Points (Total)</th>
+<th style="width:220px">Pity (Next Chance)</th>
 <th style="width:160px">Actions</th>
 </tr>
 </thead>
@@ -164,7 +172,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
   const app = initializeApp(firebaseConfig);
@@ -274,7 +282,23 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 
   const int = (n) => Math.max(0, Math.trunc(Number(n)||0));
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
+  function computePityPercents(arr){
+    const base=0.2, alpha=0.9, beta=0.12;
+    const now=Date.now(), dayMs=86400000;
+    const weights = arr.map(s=>{
+      const miss = Math.max(0, s.stats?.missStreak || 0);
+      const ts = s.stats?.lastWinAt;
+      const daysSince = (ts && typeof ts.toMillis === 'function') ? Math.max(0,(now - ts.toMillis())/dayMs) : 30;
+      const daily = Number.isFinite(s.daily) ? s.daily : 0;
+      const w = base + daily + alpha*miss + beta*daysSince;
+      return Math.max(0, w);
+    });
+    const total = weights.reduce((a,b)=>a+b,0) || 1;
+    return weights.map(w => (w/total)*100);
+  }
+
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"\']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }[m])); }
 
   function setDirty(){
     updateDirtyButtons(); // counts class-title edits too
@@ -302,6 +326,15 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
     <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
     <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
+    <td class="pity-cell">
+      <div class="meter" title="Miss streak: ${int(r.stats?.missStreak||0)}">
+        <div class="fill" style="width:${Math.min(100, Math.max(0, Math.round(r._pityPct||0)))}%"></div>
+      </div>
+      <div class="pity-row">
+        <span>Chance next</span>
+        <span class="pct">${Math.round(r._pityPct||0)}%</span>
+      </div>
+    </td>
     <td>
   <div class="toolbar">
     <button class="btn btnDel" title="Delete / Undo">
@@ -315,6 +348,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
         <path d="M5 10a7 7 0 1 0 2.05-4.95L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
+    <button class="btn btnResetPity" title="Reset pity">🧹</button>
   </div>
 </td>`;
       tbl.appendChild(tr);
@@ -322,6 +356,8 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
       tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
       const revertBtn = tr.querySelector(".btnRevert");
       if (revertBtn) revertBtn.addEventListener("click",()=>revertRow(i));
+      const resetBtn = tr.querySelector(".btnResetPity");
+      if (resetBtn) resetBtn.addEventListener("click",()=>resetPity(i));
       idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
       nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
       ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
@@ -568,10 +604,13 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
           name: data.name || "",
           points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
           daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
+          stats: data.stats || {},
         };
         rows.push(row);
-        serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily });
+        serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily, stats: row.stats });
       });
+      const pcts = computePityPercents(rows);
+      rows.forEach((r, idx) => r._pityPct = pcts[idx] || 0);
       renderTable();
 
       updateDirtyButtons();
@@ -590,7 +629,23 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   openCreateClassModal();
 }
 
-  
+
+  async function resetPity(idx){
+    if (!currentClass){ alert("Load a class first."); return; }
+    if (!auth.currentUser){ alert("Sign in to reset pity."); return; }
+    const r = rows[idx];
+    if (!r || !r.id) return;
+    try{
+      await setDoc(doc(db,'classes',currentClass,'students',r.id), {
+        stats: { missStreak: 0, lastWinAt: serverTimestamp() }
+      }, { merge: true });
+      log(`Pity reset for ${r.id}`);
+    }catch(e){
+      log(`Reset pity failed: ${e.code||'error'} - ${e.message||e}`);
+      alert('Reset pity failed. Check rules and auth.');
+    }
+  }
+
   async function saveChanges(){
     if(!currentClass){ alert("Load a class first."); return; }
     if(!isSignedIn()){ alert("Sign in to save changes."); return; }
