@@ -170,7 +170,18 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   
 <script type="module">
 
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  
+
+// === Pity/Spinner constants — keep in sync with spinner page ===
+const PITY = {
+  base:  0.2,   // floor
+  alpha: 0.9,   // per-miss boost
+  beta:  0.12,  // per-day-since-last-win boost
+  gamma: 2.5,   // cooldown penalty for most recent winner
+  noRepeatK: 1  // how many last winners to consider (1 => just last)
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -195,6 +206,9 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   const tbl = document.querySelector("#table tbody");
 
   let currentClass = "";
+// Last winner cooldown (spinner parity)
+let cooldownId = null; // classes/{classId}.classState.recentWinners[0] if present
+
   let unsubscribe = null;
   let rows = [];
   let staged = { add:new Map(), edit:new Map(), del:new Map() };
@@ -283,22 +297,46 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   const int = (n) => Math.max(0, Math.trunc(Number(n)||0));
 
   function computePityPercents(arr){
-    const base=0.2, alpha=0.9, beta=0.12;
-    const now=Date.now(), dayMs=86400000;
-    const weights = arr.map(s=>{
-      const miss = Math.max(0, s.stats?.missStreak || 0);
-      const ts = s.stats?.lastWinAt;
-      const daysSince = (ts && typeof ts.toMillis === 'function') ? Math.max(0,(now - ts.toMillis())/dayMs) : 30;
-      const daily = Number.isFinite(s.daily) ? s.daily : 0;
-      const w = base + daily + alpha*miss + beta*daysSince;
-      return Math.max(0, w);
-    });
+  const { base, alpha, beta, gamma } = PITY;
+  const now = Date.now(), dayMs = 86400000;
+
+  const weights = arr.map(s => {
+    const miss = Math.max(0, s.stats?.missStreak || 0);
+
+    const ts = s.stats?.lastWinAt;
+    const daysSince = (ts && typeof ts.toMillis === 'function')
+      ? Math.max(0, (now - ts.toMillis())/dayMs)
+      : 30;
+
+    const daily = Number.isFinite(s.daily) ? s.daily : 0;
+    const cooldown = (cooldownId && cooldownId === s.id) ? gamma : 0;
+
+    const w = base + daily + alpha*miss + beta*daysSince - cooldown;
+    return Math.max(0, w);
+  });
+
+  const total = weights.reduce((a,b)=>a+b,0) || 1;
+  return weights.map(w => (w/total)*100);
+});
     const total = weights.reduce((a,b)=>a+b,0) || 1;
     return weights.map(w => (w/total)*100);
   }
 
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"\']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }[m])); }
+  function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+  }
+
+
+function cooldownBadgeFor(id){
+  return (cooldownId && cooldownId === id)
+    ? '<span class="chip" title="Spinner cooldown">cooldown</span>'
+    : '';
+}
+
+[m]));
+}
 
   function setDirty(){
     updateDirtyButtons(); // counts class-title edits too
@@ -334,7 +372,9 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
         <span>Chance next</span>
         <span class="pct">${Math.round(r._pityPct||0)}%</span>
       </div>
-    </td>
+    
+  ${cooldownBadgeFor(r.id)}
+</td>
     <td>
   <div class="toolbar">
     <button class="btn btnDel" title="Delete / Undo">
@@ -568,7 +608,18 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     currentClass = className;
     resetState();
 
-    // Clean up previous listeners
+    
+  // --- Read classState.recentWinners for cooldown parity with spinner ---
+  try {
+    const classDoc = await getDoc(doc(db, "classes", className));
+    const cs = classDoc.exists() ? (classDoc.data().classState || {}) : {};
+    const arr = Array.isArray(cs.recentWinners) ? cs.recentWinners : [];
+    cooldownId = arr.length ? arr[0] : null;  // most recent winner only
+  } catch (e) {
+    cooldownId = null;
+  }
+
+// Clean up previous listeners
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     if (unsubClassMeta) { unsubClassMeta(); unsubClassMeta = null; }
 
