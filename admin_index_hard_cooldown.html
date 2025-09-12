@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Classroom Admin — Ground‑Up</title>
+<style>
+:root{--bg:#0b1020;--panel:#0f172a;--panel2:#111827;--muted:#9aa6b2;--text:#e7e9ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--accent:#60a5fa;--border:#1e293b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{position:sticky;top:0;z-index:3;background:#0a0f1f;border-bottom:1px solid var(--border);padding:14px 16px}
+h1{margin:0;font-size:18px}
+main{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px}
+@media (max-width:980px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+input,select,button{font:inherit}
+input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer}
+.btn.primary{border-color:var(--accent)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.log{
+  height:160px;
+  background:#000;
+  color:#9efca0;
+  border-radius:10px;
+  border:1px solid var(--border);
+  padding:10px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  white-space:pre-wrap;
+  word-break:break-word;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:11px;
+}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
+th{position:sticky;top:0;background:var(--panel);color:var(--muted);text-align:left}
+tr.add td{background:rgba(34,197,94,.06)}
+tr.edit td{background:rgba(59,130,246,.06)}
+tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
+.chip{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);color:var(--muted)}
+.status{display:flex;align-items:center;gap:8px}
+.status .dot{width:8px;height:8px;border-radius:999px;background:#999}
+.status.signedout .dot{background:#666}
+.status.signedin .dot{background:#10b981}
+  /* simple modal */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:50}
+.modal.open{display:flex}
+.modal .dialog{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.modal h3{margin:0 0 8px;font-size:16px}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+.pity-cell{min-width:220px}
+.meter{position:relative;height:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-bottom:4px}
+.meter .fill{height:100%;background:linear-gradient(90deg,#3b82f6,#22c55e)}
+.pity-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+.pity-row .pct{font-variant-numeric:tabular-nums}
+.pity-row .cool{color:var(--warn)}
+.btnResetPity{margin-left:6px;border-color:#334155}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:11px;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+<h1>📋 Classroom Admin</h1>
+</header>
+
+
+<main>
+<section>
+<div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
+<div class="toolbar" style="margin:10px 0 6px">
+<button class="btn" id="btnSignIn">Sign in with Google</button>
+<button class="btn" id="btnSignOut" disabled>Sign out</button>
+</div>
+
+
+<div class="row" style="margin-top:10px">
+<div>
+<label>Class Name</label>
+<select id="className">
+  <option value="" disabled selected>— Select a class —</option>
+</select>
+</div>
+</div>
+
+
+<div class="toolbar" style="margin-top:10px">
+  <button id="btnCreate" class="btn">Create Class</button>
+  <button id="btnExport" class="btn">Export CSV</button>
+</div>
+
+
+
+
+<div class="toolbar">
+<button id="btnAdd" class="btn">+ Add Student</button>
+<button id="btnSave" class="btn primary" disabled>Save Changes</button>
+<button id="btnDiscard" class="btn" disabled>Discard</button>
+</div>
+
+
+<label style="margin-top:12px">Change Log</label>
+<pre id="log" class="log"></pre>
+
+
+<label style="margin-top:12px">CSV/TXT Import</label>
+<div class="row">
+<div><input id="file" type="file" accept=".csv,.txt" /></div>
+<div>
+<select id="importMode">
+<option value="append">Append</option>
+<option value="replace">Replace</option>
+</select>
+</div>
+</div>
+<div class="toolbar" style="margin-top:8px">
+<button id="btnImportDry" class="btn">Dry Run</button>
+<button id="btnImportCommit" class="btn" disabled>Commit</button>
+</div>
+</section>
+
+
+<section>
+  <!-- Class header (display name + edit/revert) -->
+<div id="classHeader" class="toolbar" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div style="display:flex;gap:10px;align-items:center">
+    <h2 id="classTitle" style="margin:0;font-size:16px;color:var(--text)">Class: —</h2>
+    <span id="cooldownLegend" class="badge" title="Spinner rule: last 5 winners are ineligible">Hard cooldown: 5 spins</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" id="btnRenameClass" title="Rename Firestore doc id">🏷️</button>
+    <button class="btn" id="btnDeleteClass" title="Delete class">🗑️</button>
+    <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
+  </div>
+</div>
+<div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
+<table id="table">
+<thead>
+<tr>
+<th style="width:60px">#</th>
+<th style="width:200px">Student ID</th>
+<th>Name</th>
+<th style="width:120px">Points (Total)</th>
+<th style="width:240px">Pity (Next Chance)</th>
+<th style="width:160px">Actions</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+  <!-- Create Class Modal -->
+<div id="createClassModal" class="modal" aria-hidden="true">
+  <div class="dialog">
+    <h3>Create Class</h3>
+    <label>New class name</label>
+    <input id="newClassName" type="text" placeholder="e.g., Marigold Grade 1" />
+    <label style="margin-top:8px">Student ID Prefix</label>
+    <input id="newClassPrefix" type="text" placeholder="e.g., G2_" />
+    <div class="actions">
+      <button class="btn" id="btnCreateCancel">Exit</button>
+      <button class="btn primary" id="btnCreateConfirm" disabled>Create</button>
+    </div>
+  </div>
+</div>
+</section>
+</main>
+
+  
+<script type="module">
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = { apiKey:"AIzaSyDNNuSuHAqpms8UvOTCDmrEnXN648eTkxo", authDomain:"classroompoints.firebaseapp.com", projectId:"classroompoints", storageBucket:"classroompoints.firebasestorage.app", messagingSenderId:"176805498618", appId:"1:176805498618:web:2071d90825bafb78154343", measurementId:"G-BLJYG5JYQW" };
+  const app = initializeApp(firebaseConfig);
+  if (location.protocol === 'file:') {
+    console.warn('Firebase Auth will not work from file://. Please serve over http:// or https://');
+  }
+  const db = getFirestore(app); window.db = db;
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  const HARD_COOLDOWN_SPINS = 5; // must match spinner
+  const base  = 0.2, alpha = 0.9, beta = 0.12; // same pity coefficients as spinner
+
+  const isSignedIn = () => !!auth.currentUser;
+
+  const $ = s => document.querySelector(s);
+  const byId = id => document.getElementById(id);
+  const log = (...a) => {
+    const el = byId("log");
+    el.textContent += a.join(" ") + "\n";
+    el.scrollTop = el.scrollHeight;
+  };
+  const tbl = document.querySelector("#table tbody");
+
+  let currentClass = "";
+  let unsubscribe = null;
+  let rows = [];
+  let staged = { add:new Map(), edit:new Map(), del:new Map() };
+  let classMeta = { displayName: "", idPrefix: "" };
+  let unsubClasses = null; // listener for /classes list
+  let classMetaBaseline = null;   // latest Firestore snapshot
+  let stagedClass = null;         // UI-only edits, saved on Save Changes
+  let unsubClassMeta = null;      // onSnapshot cleanup for class doc
+  // Server baseline of latest Firestore snapshot
+  let serverBaseline = new Map();
+
+  // Recent winners (for cooldown/eligibility)
+  let recentWinners = []; // filled from class doc
+
+  // === Undo/Redo state ===
+  let history = [];
+  let future  = [];
+
+  function deepCloneState() {
+    return {
+      rows: JSON.parse(JSON.stringify(rows)),
+      staged: {
+        add: new Map(staged.add),
+        edit: new Map(staged.edit),
+        del: new Map(staged.del),
+      }
+    };
+  }
+  function mostCommon(arr){
+    const m = new Map();
+    for (const v of arr) m.set(v, (m.get(v) || 0) + 1);
+    let best = "", cnt = 0;
+    for (const [k, c] of m) if (c > cnt) { best = k; cnt = c; }
+    return best;
+  }
+
+  // e.g. G2_ from G2_0003 — grabs the non-numeric head
+  function guessPrefixFromRows(rows){
+    const prefixes = rows
+      .map(r => r.id)
+      .filter(Boolean)
+      .map(id => {
+        const m = String(id).match(/^(.+?)(\d+)$/);
+        return m ? m[1] : "";
+      })
+      .filter(Boolean);
+    return prefixes.length ? mostCommon(prefixes) : "";
+  }
+
+  // e.g. "Grade 2" -> "G2_"
+  function guessPrefixFromClassName(name){
+    const m = String(name || "").match(/(\d{1,2})/);
+    return m ? `G${m[1]}_` : "";
+  }
+
+  function restoreState(snapshot) {
+    rows = snapshot.rows;
+    staged = {
+      add: new Map(snapshot.staged.add),
+      edit: new Map(snapshot.staged.edit),
+      del: new Map(snapshot.staged.del),
+    };
+    renderTable();
+    updateDirtyButtons();
+  }
+
+  function pushHistory(label) {
+    history.push({ label, snapshot: deepCloneState() });
+    future = [];
+  }
+
+  function undo() {
+    if (!history.length) return;
+    const current = deepCloneState();
+    const { snapshot } = history.pop();
+    future.push(current);
+    restoreState(snapshot);
+  }
+
+  function redo() {
+    if (!future.length) return;
+    const current = deepCloneState();
+    const next = future.pop();
+    history.push({ label: "redo", snapshot: current });
+    restoreState(next);
+  }
+
+  const int = (n) => Math.max(0, Math.trunc(Number(n)||0));
+
+  // ---------- HARD COOLDOWN + PITY (same as spinner) ----------
+  function isBlocked(studentId){
+    const idx = recentWinners.indexOf(studentId);
+    return idx >= 0 && idx < HARD_COOLDOWN_SPINS;
+  }
+
+  function spinsLeft(studentId){
+    const idx = recentWinners.indexOf(studentId);
+    return (idx >= 0 && idx < HARD_COOLDOWN_SPINS) ? (HARD_COOLDOWN_SPINS - idx) : 0;
+  }
+
+  function computeWeight(student, now = Date.now()){
+    const dayMs = 86400000;
+    const miss = Math.max(0, student.stats?.missStreak || 0);
+    const lastMs = (student.stats?.lastWinAt && student.stats.lastWinAt.toMillis)
+      ? student.stats.lastWinAt.toMillis()
+      : null;
+    const daysSince = lastMs ? Math.max(0, (now - lastMs)/dayMs) : 30;
+    const pityBoost = alpha*miss + beta*daysSince;
+    const daily = Number.isFinite(student.daily) ? student.daily : 0;
+    return Math.max(0, base + daily + pityBoost);
+  }
+
+  function computeNextChancePercentMap(students){
+    // Filter eligible by hard cooldown
+    const eligible = students.filter(s => !isBlocked(s.id));
+    // If everyone is blocked (tiny class after several spins), relax window implicitly by treating all as eligible
+    // BUT keep back-to-back prevention by spinner; for display it's fine to show 0% if recentWinners exists.
+    let weights, total;
+    if (eligible.length > 0){
+      weights = eligible.map(s => computeWeight(s));
+      total = weights.reduce((a,b)=>a+b,0);
+    } else {
+      weights = [];
+      total = 0;
+    }
+    const map = Object.create(null);
+
+    // Eligible get normalized percentages
+    if (eligible.length > 0 && total > 0){
+      eligible.forEach((s,i) => { map[s.id] = (weights[i] / total) * 100; });
+    } else if (eligible.length > 0 && total === 0){
+      // Degenerate case: all weights 0 → equal split among eligibles
+      const pct = 100 / eligible.length;
+      eligible.forEach(s => { map[s.id] = pct; });
+    }
+
+    // Blocked explicitly 0%
+    students.forEach(s => {
+      if (isBlocked(s.id)) map[s.id] = 0;
+    });
+
+    return map;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m =>
+      ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])
+    );
+  }
+
+  function setDirty(){
+    updateDirtyButtons();
+  }
+  function resetState(){
+    rows = [];
+    staged = { add:new Map(), edit:new Map(), del:new Map() };
+    stagedClass = null;
+    renderTable();
+    if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+    updateDirtyButtons();
+    log("--- state cleared ---");
+  }
+
+  function renderTable(){
+    tbl.innerHTML = "";
+    rows.forEach((r,i)=>{
+      const coolLeft = r._coolLeft || 0;
+      const pct = Math.min(100, Math.max(0, Math.round(r._pityPct || 0)));
+      const meterWidth = coolLeft > 0 ? 0 : pct;
+
+      const tr = document.createElement("tr");
+      if(r._state==="add") tr.classList.add("add");
+      if(r._state==="edit") tr.classList.add("edit");
+      if(r._state==="del") tr.classList.add("del");
+      tr.innerHTML = `
+    <td>${i+1}</td>
+    <td><input class="cell id" value="${escapeHtml(r.id)}" ${r._state==="del"?"disabled":""}></td>
+    <td><input class="cell name" value="${escapeHtml(r.name||"")}" ${r._state==="del"?"disabled":""}></td>
+    <td><input class="cell points" type="number" min="0" value="${int(r.points||0)}" ${r._state==="del"?"disabled":""}></td>
+    <td class="pity-cell">
+      <div class="meter" title="Miss streak: ${int(r.stats?.missStreak||0)}; ${coolLeft>0 ? (`Cooling down: ${coolLeft} spins left`) : 'Eligible'}">
+        <div class="fill" style="width:${meterWidth}%"></div>
+      </div>
+      <div class="pity-row">
+        <span>${coolLeft>0 ? `<span class='cool'>Cooling down (${coolLeft} left)</span>` : 'Chance next'}</span>
+        <span class="pct">${coolLeft>0 ? '0%' : (pct + '%')}</span>
+      </div>
+    </td>
+    <td>
+  <div class="toolbar">
+    <button class="btn btnDel" title="Delete / Undo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M3 6h18M8 6v-.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V6m-8 0v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="btn btnRevert" title="Revert to Firestore">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M9 10H5V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 10a7 7 0 1 0 2.05-4.95L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="btn btnResetPity" title="Reset pity">🧹</button>
+  </div>
+</td>`;
+      tbl.appendChild(tr);
+      const [idEl,nameEl,ptsEl] = tr.querySelectorAll("input.cell");
+      tr.querySelector(".btnDel").addEventListener("click",()=>toggleDelete(i));
+      const revertBtn = tr.querySelector(".btnRevert");
+      if (revertBtn) revertBtn.addEventListener("click",()=>revertRow(i));
+      const resetBtn = tr.querySelector(".btnResetPity");
+      if (resetBtn) resetBtn.addEventListener("click",()=>resetPity(i));
+      idEl.addEventListener("change",()=>markEdit(i,{ id:idEl.value.trim() }));
+      nameEl.addEventListener("change",()=>markEdit(i,{ name:nameEl.value }));
+      ptsEl.addEventListener("change",()=>markEdit(i,{ points:int(ptsEl.value) }));
+
+      [idEl, nameEl, ptsEl].forEach(el => {
+        el.addEventListener("keydown", ev => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            ev.currentTarget.blur();
+          }
+        });
+      });
+    });
+  }
+
+  function updateDirtyButtons(){
+    const dirty = (staged.add.size || staged.edit.size || staged.del.size || !!stagedClass);
+    byId("btnSave").disabled = !dirty;
+    byId("btnDiscard").disabled = !dirty;
+  }
+
+  function revertRow(idx){
+    pushHistory('revertRow');
+    const r = rows[idx];
+    const baseId = r._baselineId || r.id;
+    const base = serverBaseline.get(baseId);
+
+    if (!base) {
+      staged.add.delete(r.id);
+      staged.edit.delete(r.id);
+      staged.del.delete(r.id);
+      rows.splice(idx, 1);
+      updateDirtyButtons();
+      renderTable();
+      return;
+    }
+
+    r.id = base.id;
+    r.name = base.name || "";
+    r.points = int(base.points || 0);
+    r._state = undefined;
+    delete r._origState; delete r._origId;
+
+    staged.add.delete(r.id);
+    staged.edit.delete(r.id);
+    staged.del.delete(r.id);
+
+    updateDirtyButtons();
+    renderTable();
+  }
+
+  function toggleDelete(idx){ pushHistory('toggleDelete'); const r=rows[idx]; if(r._state==="del"){ r._state=r._origState||undefined; staged.del.delete(r._origId||r.id); } else { r._origState=r._state; r._state="del"; r._origId=r.id; staged.del.set(r.id,true); staged.add.delete(r.id); staged.edit.delete(r.id); } setDirty(); renderTable(); }
+  function markEdit(idx, patch) {
+    pushHistory('markEdit');
+    const r = rows[idx];
+    if (r._state === "del") return;
+
+    const prevId = r.id;
+
+    Object.assign(r, patch);
+    if (patch.points !== undefined) r.points = int(patch.points);
+
+    if (patch.id && patch.id !== prevId) {
+      staged.del.set(prevId, true);
+      staged.add.set(r.id, {
+        id: r.id,
+        name: r.name || "",
+        points: int(r.points || 0),
+      });
+      r._state = "edit";
+    } else {
+      if (staged.add.has(r.id) || r._state === "add") {
+        const cur = staged.add.get(r.id) || { id: r.id, name: "", points: 0 };
+        const next = { ...cur, id: r.id };
+        if (patch.name !== undefined) next.name = r.name || "";
+        if (patch.points !== undefined) next.points = int(r.points || 0);
+        staged.add.set(r.id, next);
+      } else {
+        const cur = staged.edit.get(r.id) || {};
+        const next = { ...cur };
+        if (patch.name !== undefined) next.name = r.name;
+        if (patch.points !== undefined) next.points = int(r.points || 0);
+        if (patch.id !== undefined) next.id = r.id;
+        staged.edit.set(r.id, next);
+        if (r._state !== "add") r._state = "edit";
+      }
+    }
+
+    setDirty();
+    renderTable();
+  }
+
+  function addRow(){
+    pushHistory('addRow');
+    const id = `${(classMeta && classMeta.idPrefix) ? classMeta.idPrefix : ""}${String(rows.length+1).padStart(4,"0")}`;
+    const r = { id, name:"", points:0, _state:"add" };
+    rows.push(r);
+    staged.add.set(id,{ id, name:"", points:0 });
+    setDirty();
+    renderTable();
+
+    setTimeout(() => {
+      const lastRow = tbl.lastElementChild;
+      if (lastRow) {
+        const nameInput = lastRow.querySelector("input.cell.name");
+        if (nameInput) {
+          nameInput.focus();
+          nameInput.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              nameInput.blur();
+            }
+          }, { once: true });
+        }
+      }
+    }, 0);
+  }
+
+  async function renameClassDoc(oldId, newId, { deleteOld = false } = {}) {
+    if (!oldId || !newId) { alert("Both old and new class names are required."); return; }
+    if (oldId === newId) { alert("New class name must be different."); return; }
+    if (/[\/#?[\]]/.test(newId)) { alert("Invalid characters in class name."); return; }
+
+    const destRef = doc(db, "classes", newId);
+    const destSnap = await getDoc(destRef);
+    if (destSnap.exists()) { alert(`A class named "${newId}" already exists.`); return; }
+
+    log(`Renaming class: ${oldId} → ${newId} (copying docs)…`);
+
+    const srcRef = doc(db, "classes", oldId);
+    const srcSnap = await getDoc(srcRef);
+    const baseMeta = srcSnap.exists() ? srcSnap.data() : {};
+    const mergedMeta = {
+      ...baseMeta,
+      ...(stagedClass || {}),
+      displayName: (stagedClass && stagedClass.displayName) || baseMeta.displayName || newId,
+      updatedAt: Date.now(),
+      createdFrom: oldId,
+    };
+
+    let batch = writeBatch(db);
+    let ops = 0;
+    const commitIfFull = async () => { if (ops && ops % 400 === 0) { await batch.commit(); batch = writeBatch(db); } };
+
+    batch.set(destRef, mergedMeta, { merge: true }); ops++;
+
+    const studentsSnap = await getDocs(collection(db, "classes", oldId, "students"));
+    studentsSnap.forEach(d => {
+      batch.set(doc(db, "classes", newId, "students", d.id), d.data(), { merge: true });
+      ops++;
+    });
+    await commitIfFull();
+    await batch.commit();
+
+    log(`Copied ${studentsSnap.size} students to "${newId}".`);
+
+    if (deleteOld) {
+      log(`Deleting old class "${oldId}"…`);
+      const delBatchSize = 400;
+      let delBatch = writeBatch(db);
+      let delOps = 0;
+
+      const again = await getDocs(collection(db, "classes", oldId, "students"));
+      again.forEach(d => {
+        delBatch.delete(doc(db, "classes", oldId, "students", d.id));
+        if (++delOps % delBatchSize === 0) { delBatch.commit(); delBatch = writeBatch(db); }
+      });
+      await delBatch.commit();
+
+      const finalBatch = writeBatch(db);
+      finalBatch.delete(srcRef);
+      await finalBatch.commit();
+
+      log(`Old class "${oldId}" deleted.`);
+    }
+
+    currentClass = newId;
+    byId("className").value = newId;
+    staged = { add:new Map(), edit:new Map(), del:new Map() };
+    stagedClass = null;
+    history = []; future = [];
+    await loadClass();
+    updateDirtyButtons();
+  }
+
+  async function loadClass(){
+    const className = byId("className").value.trim();
+    if(!className){ alert("Enter a class name"); return; }
+    currentClass = className;
+    resetState();
+
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    if (unsubClassMeta) { unsubClassMeta(); unsubClassMeta = null; }
+
+    const classRef = doc(db, "classes", className);
+    unsubClassMeta = onSnapshot(classRef, (snap) => {
+      const data = snap.data() || {};
+      classMetaBaseline = {
+        displayName: data.displayName || className,
+        idPrefix: data.idPrefix || ""
+      };
+      recentWinners = Array.isArray(data?.classState?.recentWinners) ? data.classState.recentWinners : [];
+
+      if (!stagedClass) classMeta = { ...classMetaBaseline };
+      byId("classTitle").textContent = classMeta.displayName || className;
+    }, (err) => log("class meta listen:", err.code || err.message));
+
+    const coll = collection(db, "classes", className, "students");
+    const processSnap = (snap) => {
+      rows = [];
+      serverBaseline = new Map();
+      snap.forEach(d => {
+        const data = d.data();
+        const row = {
+          id: d.id,
+          name: data.name || "",
+          points: (data.points && typeof data.points.total === 'number') ? int(data.points.total) : 0,
+          daily:  (data.points && typeof data.points.daily === 'number') ? int(data.points.daily)  : 0,
+          stats: data.stats || {},
+        };
+        rows.push(row);
+        serverBaseline.set(d.id, { id: row.id, name: row.name, points: row.points, daily: row.daily, stats: row.stats });
+      });
+
+      // Compute next-chance % with hard cooldown eligibility
+      const pctMap = computeNextChancePercentMap(rows);
+      rows.forEach(r => {
+        r._pityPct = pctMap[r.id] || 0;
+        r._coolLeft = spinsLeft(r.id);
+      });
+
+      renderTable();
+      updateDirtyButtons();
+      log(`Loaded ${rows.length} students for ${className} (recent winners: ${recentWinners.slice(0,5).join(',') || 'none'})`);
+      history = []; future = [];
+    };
+
+    unsubscribe = onSnapshot(query(coll), processSnap, (err) =>
+      log("students listen:", err.code || err.message)
+    );
+  }
+
+  async function createClass(){
+    openCreateClassModal();
+  }
+
+  async function resetPity(idx){
+    if (!currentClass){ alert("Load a class first."); return; }
+    if (!auth.currentUser){ alert("Sign in to reset pity."); return; }
+    const r = rows[idx];
+    if (!r || !r.id) return;
+    try{
+      await setDoc(doc(db,'classes',currentClass,'students',r.id), {
+        stats: { missStreak: 0, lastWinAt: serverTimestamp() }
+      }, { merge: true });
+      log(`Pity reset for ${r.id}`);
+    }catch(e){
+      log(`Reset pity failed: ${e.code||'error'} - ${e.message||e}`);
+      alert('Reset pity failed. Check rules and auth.');
+    }
+  }
+
+  async function saveChanges(){
+    if(!currentClass){ alert("Load a class first."); return; }
+    if(!isSignedIn()){ alert("Sign in to save changes."); return; }
+
+    try{
+      const uid = auth.currentUser && auth.currentUser.uid;
+      const email = (auth.currentUser && auth.currentUser.email) || '(no email)';
+      log(`Saving as uid=${uid || 'unknown'} email=${email}`);
+
+      const batch = writeBatch(db);
+
+      staged.del.forEach((_, id) => {
+        batch.delete(doc(db, "classes", currentClass, "students", id));
+      });
+
+      staged.add.forEach((data, id) => {
+        batch.set(
+          doc(db, "classes", currentClass, "students", id),
+          {
+            id: data.id,
+            name: data.name || "",
+            points: { daily: 0, total: int(data.points || 0) }
+          },
+          { merge: true }
+        );
+      });
+
+      staged.edit.forEach((patch, id) => {
+        if (!staged.add.has(id)) {
+          const existing = rows.find(r => r.id === id) || { name: "", points: 0, daily: 0 };
+          const name  = (patch.name   !== undefined) ? patch.name        : (existing.name || "");
+          const total = (patch.points !== undefined) ? int(patch.points) : int(existing.points || 0);
+          const daily = (typeof existing.daily === 'number') ? int(existing.daily) : 0;
+
+          batch.set(
+            doc(db, "classes", currentClass, "students", id),
+            { id, name, points: { daily, total } },
+            { merge: true }
+          );
+        }
+      });
+
+      const classCount = stagedClass ? 1 : 0;
+      const total = staged.del.size + staged.add.size + staged.edit.size + classCount;
+      if (!total) { log("No changes to save."); return; }
+
+      if (classCount) {
+        batch.set(
+          doc(db, "classes", currentClass),
+          stagedClass,
+          { merge: true }
+        );
+      }
+
+      await batch.commit();
+      log(`Saved: del=${staged.del.size} add=${staged.add.size} edit=${staged.edit.size} class=${classCount}`);
+
+      rows = rows
+        .filter(r => !staged.del.has(r.id))
+        .map(r => ({ id: r.id, name: r.name, points: int(r.points) }));
+
+      staged = { add:new Map(), edit:new Map(), del:new Map() };
+      stagedClass = null;
+      if (byId('btnRevertClass')) byId('btnRevertClass').disabled = true;
+
+      renderTable();
+      updateDirtyButtons();
+      history = [];
+      future  = [];
+
+    } catch(e){
+      const code = e && e.code ? e.code : 'unknown';
+      const msg  = e && e.message ? e.message : String(e);
+      log(`Save failed: ${code} - ${msg}`);
+      alert(`Save failed: ${code}. Check Firestore security rules and auth.`);
+      throw e;
+    }
+  }
+
+  function discardChanges(){ loadClass(); }
+
+  // ===== CSV Import =====
+
+  function parseCSV(text){
+    const normalized = (text || '').replace(/\r\n?/g, '\n');
+    const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return [];
+
+    const first = lines[0];
+    const headerish = /id|name|points/i.test(first) && first.includes(',');
+    const rows = headerish ? lines.slice(1) : lines;
+    const headers = headerish ? first.split(',').map(h=>h.trim().toLowerCase()) : [];
+
+    return rows.map(l => {
+      const cols = l.split(',');
+      const pick = (key, fallbackIndex) => {
+        if (headerish) {
+          const idx = headers.indexOf(key);
+          return idx >= 0 ? (cols[idx] || '').trim() : '';
+        }
+        return (cols[fallbackIndex] || '').trim();
+      };
+      const name   = headerish ? pick('name',   0) : pick('', 0);
+      const id     = headerish ? pick('id',     2) : '';
+      const points = headerish ? pick('points', 1) : pick('', 1);
+      return { id, name, points };
+    }).filter(r => r.name || r.id);
+  }
+
+  function parseFileToNames(text){
+    const normalized = (text || '').replace(/\r\n?/g, '\n');
+    return normalized
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .map(l => l.split(',')[0].trim())
+      .filter(Boolean);
+  }
+
+  function parseRoster(text){
+    const normalized = (text || '').replace(/\r\n?/g, '\n');
+    const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return [];
+
+    const split = (l) => (l.includes('\t') ? l.split('\t') : l.split(',')).map(s => s.trim());
+
+    const firstCols = split(lines[0]);
+    const headerish = firstCols.some(h => /^(id|index|name|points)$/i.test(h));
+    const rows = headerish ? lines.slice(1) : lines;
+    const headers = headerish ? firstCols.map(h => h.toLowerCase()) : [];
+
+    const getByHeader = (cols, key) => {
+      const i = headers.indexOf(key);
+      return i >= 0 ? (cols[i] || '').trim() : '';
+    };
+
+    return rows.map(l => {
+      const cols = split(l);
+      let rawIndex = '', rawId = '', name = '', points = '';
+
+      if (headerish) {
+        rawId    = getByHeader(cols, 'id');
+        rawIndex = getByHeader(cols, 'index');
+        name     = getByHeader(cols, 'name');
+        points   = getByHeader(cols, 'points');
+      } else {
+        if (/^\d+$/.test(cols[0]) && cols[1]) {
+          rawIndex = cols[0];
+          name     = cols[1];
+          points   = cols[2] || '';
+        } else {
+          name   = cols[0] || '';
+          points = cols[1] || '';
+        }
+      }
+
+      name = (name || '').trim();
+
+      return { rawIndex, rawId, name, points };
+    }).filter(r => r.name || r.rawId);
+  }
+
+  async function importDry(){
+    if(!currentClass){ alert("Load a class first."); return; }
+    if(!isSignedIn()){ alert("Sign in to run import."); return; }
+
+    const f = byId("file");
+    if(!f.files || !f.files.length){ alert("Choose a CSV/TXT file."); return; }
+
+    const text = await f.files[0].text();
+    const rowsCsv = parseRoster(text);
+    if(!rowsCsv.length){ alert("No rows detected in file."); return; }
+
+    const pref = (classMeta && classMeta.idPrefix ? String(classMeta.idPrefix) : "").trim();
+    if(!pref){ alert("Enter an ID prefix first (e.g., G2_)"); return; }
+
+    const used = new Set(rows.map(r => r.id));
+    const pad  = (n, width=4) => String(n).padStart(width, "0");
+
+    let seq = 1;
+    const nextSeqId = () => {
+      let id;
+      do { id = `${pref}${pad(seq++)}`; } while (used.has(id));
+      used.add(id);
+      return id;
+    };
+
+    const toPlanId = (r) => {
+      if (r.rawIndex && /^\d+$/.test(r.rawIndex)) {
+        const id = `${pref}${pad(parseInt(r.rawIndex, 10))}`;
+        used.add(id);
+        return id;
+      }
+      if (r.rawId && !used.has(r.rawId)) {
+        used.add(r.rawId);
+        return r.rawId;
+      }
+      return nextSeqId();
+    };
+
+    const plan = rowsCsv.map(r => ({
+      id: toPlanId(r),
+      name: (r.name || '').trim(),
+      points: Math.max(0, Math.trunc(Number(r.points || 0) || 0)),
+    }));
+
+    log(`Dry Run: ${plan.length} to add/merge`);
+    byId("btnImportCommit").disabled = false;
+    byId("btnImportCommit")._plan = plan;
+  }
+
+  async function importCommit(){
+    const plan=byId("btnImportCommit")._plan||[];
+    if(!plan.length){ alert("Run Dry Run first."); return; }
+    if(!isSignedIn()){ alert("Sign in to import."); return; }
+    const mode=byId("importMode").value;
+    const batch=writeBatch(db);
+    const base=["classes",currentClass,"students"];
+    if(mode==="replace"){
+      const keep=new Set(plan.map(p=>p.id));
+      for(const r of rows){ if(!keep.has(r.id)) batch.delete(doc(db,...base,r.id)); }
+    }
+    for(const p of plan){
+      batch.set(doc(db,...base,p.id), { id:p.id, name:p.name, points:{ daily:0, total:0 } }, { merge:true });
+    }
+    await batch.commit();
+    log(`Import committed: ${plan.length} students (mode=${mode})`);
+    byId("btnImportCommit").disabled=true;
+    loadClass();
+  }
+
+  function startClassesListener(){
+    if (unsubClasses) { unsubClasses(); unsubClasses = null; }
+
+    const classesCol = collection(db, "classes");
+    unsubClasses = onSnapshot(
+      classesCol,
+      (snap) => {
+        const items = [];
+        snap.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          const id = docSnap.id;
+          const label = data.displayName || id;
+          items.push({ id, label });
+        });
+
+        items.sort((a, b) =>
+          a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" })
+        );
+
+        const sel = byId("className");
+        const prev = sel.value;
+        sel.innerHTML =
+          '<option value="" disabled>— Select a class —</option>' +
+          items.map(it => `<option value="${it.id}">${escapeHtml(it.label)}</option>`).join("");
+
+        if (items.some(it => it.id === prev)) {
+          sel.value = prev;
+        } else {
+          sel.selectedIndex = 0;
+        }
+      },
+      (err) => log("classes list listen:", err.code || err.message)
+    );
+  }
+
+  // ===== Create-Class Modal helpers + validation =====
+  function validateCreateModal(){
+    const name = (byId('newClassName')?.value || '').trim();
+    const pref = (byId('newClassPrefix')?.value || '').trim();
+    const btn  = byId('btnCreateConfirm');
+    if (btn) btn.disabled = !(name && pref);
+  }
+
+  function suggestPrefixFromNameOnce(){
+    const prefEl = byId('newClassPrefix');
+    if (!prefEl) return;
+    if (prefEl.value.trim()) return;
+
+    const name = (byId('newClassName')?.value || '').trim();
+    const guess = guessPrefixFromClassName(name) || '';
+    if (guess) prefEl.value = guess;
+    validateCreateModal();
+  }
+
+  function openCreateClassModal(){
+    const m = byId('createClassModal');
+    if (!m) return;
+    m.classList.add('open');
+    m.setAttribute('aria-hidden','false');
+
+    const prefEl = byId('newClassPrefix');
+    const nameEl = byId('newClassName');
+    if (prefEl) { prefEl.value = ''; }
+    if (nameEl) { nameEl.value = ''; setTimeout(()=>nameEl.focus(), 0); }
+
+    suggestPrefixFromNameOnce();
+    validateCreateModal();
+  }
+  function closeCreateClassModal(){
+    const m = byId('createClassModal');
+    if (!m) return;
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden','true');
+  }
+  async function createClassFromModal(){
+    const nameEl = byId('newClassName');
+    const prefEl = byId('newClassPrefix');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const prefix = prefEl ? prefEl.value.trim() : '';
+
+    if (!name || !prefix){
+      alert('Enter both a class name and a student ID prefix (e.g., G2_)');
+      validateCreateModal();
+      return;
+    }
+
+    try{
+      const b = writeBatch(db);
+      b.set(
+        doc(db, 'classes', name),
+        { displayName: name, idPrefix: prefix, createdAt: Date.now() },
+        { merge: true }
+      );
+      await b.commit();
+      log(`Class "${name}" created with prefix "${prefix}".`);
+
+      const sel = byId('className');
+      if (sel) sel.value = name;
+      closeCreateClassModal();
+      await loadClass();
+    }catch(e){
+      log(`Create class failed: ${e.code||'error'} - ${e.message||e}`);
+      alert('Create class failed. Check rules and auth.');
+    }
+  }
+
+  function updateAuthUI(user){
+    const status = byId('authStatus');
+    const textEl = byId('authText');
+    const signInBtn = byId('btnSignIn');
+    const signOutBtn = byId('btnSignOut');
+    if(user){
+      status.classList.remove('signedout');
+      status.classList.add('signedin');
+      textEl.textContent = `Signed in as ${user.displayName || user.email || 'User'}`;
+      signInBtn.disabled = true;
+      signOutBtn.disabled = false;
+    } else {
+      status.classList.remove('signedin');
+      status.classList.add('signedout');
+      textEl.textContent = 'Signed out';
+      signInBtn.disabled = false;
+      signOutBtn.disabled = true;
+    }
+  }
+  byId('btnRenameClass').addEventListener('click', async () => {
+    if (!currentClass) { alert("Load a class first."); return; }
+    const suggestion = (classMeta && classMeta.displayName) ? classMeta.displayName : currentClass;
+    const newId = prompt("New Firestore class name (document id):", suggestion);
+    if (newId == null) return;
+
+    const confirmDelete = confirm("Copy to the new class and delete the old one afterwards?\nChoose OK to move (delete old), or Cancel to keep both.");
+    try {
+      await renameClassDoc(currentClass, newId.trim(), { deleteOld: confirmDelete });
+    } catch (e) {
+      log(`Rename failed: ${e.code || 'error'} - ${e.message || e}`);
+      alert("Rename failed. See Change Log for details.");
+    }
+  });
+  byId('className').addEventListener('change', () => {
+    const val = byId('className').value;
+    if (val) { void loadClass(); }
+  });
+
+  byId('btnSignIn').addEventListener('click', async () => {
+    try{
+      await signInWithPopup(auth, provider);
+      log('Sign-in popup completed.');
+    }catch(e){
+      log('Sign-in error:', e.code || e.message);
+      alert(`Sign-in failed: ${e.code || e.message}`);
+    }
+  });
+
+  byId('btnSignOut').addEventListener('click', async () => {
+    try{ await signOut(auth); log('Signed out.'); }
+    catch(e){ log('Sign-out error:', e.code || e.message); }
+  });
+
+  byId('btnCreate').addEventListener('click', openCreateClassModal);
+  byId('btnAdd').addEventListener('click', addRow);
+  byId('btnSave').addEventListener('click', () => { void saveChanges(); });
+  byId('btnDiscard').addEventListener('click', discardChanges);
+
+  byId('btnExport').addEventListener('click', () => {
+    const header = 'id,name,points\n';
+    const lines = rows
+      .map(r => `${r.id},${(r.name||'').replace(/,/g,' ')},${int(r.points||0)}`)
+      .join('\n');
+
+    const blob = new Blob([header + lines], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${currentClass || 'class'}-students.csv`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  });
+
+  byId('newClassName')?.addEventListener('input', () => { suggestPrefixFromNameOnce(); validateCreateModal(); });
+  byId('newClassPrefix')?.addEventListener('input', () => { validateCreateModal(); });
+
+  async function deleteClassDoc(classId){
+    if (!classId) return;
+    const base = ['classes', classId, 'students'];
+    const batchSize = 400;
+
+    const studentsSnap = await getDocs(collection(db, ...base));
+    let bat = writeBatch(db);
+    let ops = 0;
+    studentsSnap.forEach(d => {
+      bat.delete(doc(db, ...base, d.id));
+      ops++;
+      if (ops % batchSize === 0) { bat.commit(); bat = writeBatch(db); }
+    });
+    await bat.commit();
+
+    const classRef = doc(db, 'classes', classId);
+    const finalBatch = writeBatch(db);
+    finalBatch.delete(classRef);
+    await finalBatch.commit();
+
+    log(`Class "${classId}" deleted.`);
+
+    const sel = byId('className');
+    if (sel && sel.value === classId) {
+      sel.selectedIndex = 0;
+    }
+    currentClass = "";
+    resetState();
+  }
+
+  byId('btnDeleteClass').addEventListener('click', async () => {
+    if (!currentClass) { alert("Load a class first."); return; }
+    const ok = confirm(`Are you sure you want to DELETE the class "${currentClass}" and all its students? This cannot be undone.`);
+    if (!ok) return;
+    try {
+      await deleteClassDoc(currentClass);
+    } catch(e){
+      log(`Delete failed: ${(e && e.code) || 'error'} - ${(e && e.message) || e}`);
+      alert("Delete failed. See Change Log for details.");
+    }
+  });
+  byId('btnRevertClass').disabled = true;
+
+  byId('btnCreateCancel').addEventListener('click', closeCreateClassModal);
+  byId('btnCreateConfirm').addEventListener('click', () => { void createClassFromModal(); });
+
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeCreateClassModal(); });
+
+  byId("btnImportDry").addEventListener("click", importDry);
+  byId("btnImportCommit").addEventListener("click", importCommit);
+
+  document.addEventListener('keydown', (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    if (['TEXTAREA','INPUT'].includes((e.target.tagName || '').toUpperCase()) &&
+        e.target.type !== 'checkbox' &&
+        e.key.toLowerCase() !== 'z') {
+      return;
+    }
+    if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      e.preventDefault(); undo();
+    } else if ((e.key.toLowerCase() === 'z') && e.shiftKey) {
+      e.preventDefault(); redo();
+    }
+  });
+
+  onAuthStateChanged(auth, (user) => {
+    updateAuthUI(user);
+    startClassesListener();
+    if(user){ log('Auth state: signed in'); } else { log('Auth state: signed out'); }
+  });
+
+</script>
+</body>
+</html>
