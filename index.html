@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Classroom Admin — Ground‑Up</title>
+<title>Classroom Admin — Ground-Up</title>
 <style>
 :root{--bg:#0b1020;--panel:#0f172a;--panel2:#111827;--muted:#9aa6b2;--text:#e7e9ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--accent:#60a5fa;--border:#1e293b}
 *{box-sizing:border-box}
@@ -20,6 +20,8 @@ input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;back
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer}
 .btn.primary{border-color:var(--accent)}
+/* NEW: danger style for destructive admin actions */
+.btn.danger{border-color:var(--err);background:#7f1d1d;color:#fff}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .log{
@@ -47,7 +49,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 .status .dot{width:8px;height:8px;border-radius:999px;background:#999}
 .status.signedout .dot{background:#666}
 .status.signedin .dot{background:#10b981}
-  /* simple modal */
+/* simple modal */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:50}
 .modal.open{display:flex}
 .modal .dialog{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.4)}
@@ -69,7 +71,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <h1>📋 Classroom Admin</h1>
 </header>
 
-
 <main>
 <section>
 <div class="status signedout" id="authStatus"><span class="dot"></span><span id="authText">Signed out</span></div>
@@ -77,7 +78,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <button class="btn" id="btnSignIn">Sign in with Google</button>
 <button class="btn" id="btnSignOut" disabled>Sign out</button>
 </div>
-
 
 <div class="row" style="margin-top:10px">
 <div>
@@ -88,14 +88,10 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </div>
 </div>
 
-
 <div class="toolbar" style="margin-top:10px">
   <button id="btnCreate" class="btn">Create Class</button>
   <button id="btnExport" class="btn">Export CSV</button>
 </div>
-
-
-
 
 <div class="toolbar">
 <button id="btnAdd" class="btn">+ Add Student</button>
@@ -103,10 +99,8 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 <button id="btnDiscard" class="btn" disabled>Discard</button>
 </div>
 
-
 <label style="margin-top:12px">Change Log</label>
 <pre id="log" class="log"></pre>
-
 
 <label style="margin-top:12px">CSV/TXT Import</label>
 <div class="row">
@@ -124,7 +118,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </div>
 </section>
 
-
 <section>
   <!-- Class header (display name + edit/revert) -->
 <div id="classHeader" class="toolbar" style="justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -136,6 +129,8 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     <button class="btn" id="btnRenameClass" title="Rename Firestore doc id">🏷️</button>
     <button class="btn" id="btnDeleteClass" title="Delete class">🗑️</button>
     <button class="btn" id="btnRevertClass" title="Revert to Firestore" disabled>↩️</button>
+    <!-- NEW: Reset hard cooldown -->
+    <button class="btn danger" id="btnResetCooldown" title="Clear anti-repeat cooldown for this class">Reset Hard Cooldown</button>
   </div>
 </div>
 <div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;background:var(--panel)">
@@ -170,9 +165,7 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
 </section>
 </main>
 
-  
 <script type="module">
-
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, setDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -316,8 +309,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
   function computeNextChancePercentMap(students){
     // Filter eligible by hard cooldown
     const eligible = students.filter(s => !isBlocked(s.id));
-    // If everyone is blocked (tiny class after several spins), relax window implicitly by treating all as eligible
-    // BUT keep back-to-back prevention by spinner; for display it's fine to show 0% if recentWinners exists.
     let weights, total;
     if (eligible.length > 0){
       weights = eligible.map(s => computeWeight(s));
@@ -332,7 +323,6 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
     if (eligible.length > 0 && total > 0){
       eligible.forEach((s,i) => { map[s.id] = (weights[i] / total) * 100; });
     } else if (eligible.length > 0 && total === 0){
-      // Degenerate case: all weights 0 → equal split among eligibles
       const pct = 100 / eligible.length;
       eligible.forEach(s => { map[s.id] = pct; });
     }
@@ -1149,6 +1139,43 @@ tr.del td{background:rgba(239,68,68,.06);text-decoration:line-through}
       e.preventDefault(); undo();
     } else if ((e.key.toLowerCase() === 'z') && e.shiftKey) {
       e.preventDefault(); redo();
+    }
+  });
+
+  // NEW: Reset Hard Cooldown handler
+  byId('btnResetCooldown').addEventListener('click', async () => {
+    if (!currentClass) { alert('Select/load a class first.'); return; }
+    if (!auth.currentUser) { alert('Sign in first — only teachers can reset cooldown.'); return; }
+    if (!confirm('Reset hard cooldown? This clears recent-winner history for this class.')) return;
+    if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+
+    const btn = byId('btnResetCooldown');
+    btn.disabled = true;
+    try{
+      await setDoc(
+        doc(db, 'classes', currentClass),
+        {
+          classState: {
+            recentWinners: [],
+            cooldownResetAt: serverTimestamp(),
+            cooldownResetBy: auth.currentUser?.uid || null,
+            cooldownResetMode: 'clearAll'
+          }
+        },
+        { merge: true }
+      );
+      // Update local state immediately so meters reflect the reset
+      recentWinners = [];
+      const pctMap = computeNextChancePercentMap(rows);
+      rows.forEach(r => { r._pityPct = pctMap[r.id] || 0; r._coolLeft = 0; });
+      renderTable();
+      log(`Hard cooldown reset for "${currentClass}".`);
+      alert('Cooldown reset: recent winners cleared.');
+    }catch(e){
+      log(`Cooldown reset failed: ${e?.code || 'error'} - ${e?.message || e}`);
+      alert(`Cooldown reset failed: ${e?.message || e}`);
+    }finally{
+      btn.disabled = false;
     }
   });
 
